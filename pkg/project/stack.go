@@ -38,6 +38,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var log = slog.New(slog.Default().Handler()).With("component", "project.stack")
+
 type BuildFailedEvent struct {
 	Error string
 }
@@ -164,7 +166,7 @@ var ErrStageNotFound = fmt.Errorf("stage not found")
 var ErrPassphraseInvalid = fmt.Errorf("passphrase invalid")
 
 func (p *Project) Run(ctx context.Context, input *StackInput) error {
-	slog.Info("running stack command", "cmd", input.Command)
+	log.Info("running stack command", "cmd", input.Command)
 
 	bus.Publish(&StackCommandEvent{
 		App:     p.app.Name,
@@ -249,7 +251,9 @@ func (p *Project) Run(ctx context.Context, input *StackInput) error {
 		env["SST_SECRET_"+key] = value
 	}
 	env["PULUMI_CONFIG_PASSPHRASE"] = passphrase
+	env["PULUMI_ACCESS_TOKEN"] = "pul-62229867327d672cb8b3d274774f7119146c32dc"
 	env["PULUMI_SKIP_UPDATE_CHECK"] = "true"
+	// env["PULUMI_SKIP_CHECKPOINTS"] = "true"
 	// env["PULUMI_DISABLE_AUTOMATIC_PLUGIN_ACQUISITION"] = "true"
 	env["NODE_OPTIONS"] = "--enable-source-maps --no-deprecation"
 	// env["TMPDIR"] = p.PathLog("")
@@ -275,7 +279,7 @@ func (p *Project) Run(ctx context.Context, input *StackInput) error {
 			Name:    tokens.PackageName(p.app.Name),
 			Runtime: workspace.NewProjectRuntimeInfo("nodejs", nil),
 			Backend: &workspace.ProjectBackend{
-				URL: fmt.Sprintf("file://%v", p.PathWorkingDir()),
+				URL: fmt.Sprintf("http://localhost:%v/state", input.ServerPort),
 			},
 			Main: outfile,
 		}),
@@ -286,7 +290,7 @@ func (p *Project) Run(ctx context.Context, input *StackInput) error {
 	if err != nil {
 		return err
 	}
-	slog.Info("built workspace")
+	log.Info("built workspace")
 
 	stack, err := auto.UpsertStack(ctx,
 		p.app.Stage,
@@ -295,20 +299,20 @@ func (p *Project) Run(ctx context.Context, input *StackInput) error {
 	if err != nil {
 		return err
 	}
-	slog.Info("built stack")
+	log.Info("built stack")
 
-	completed, err := getCompletedEvent(ctx, stack)
-	if err != nil {
-		bus.Publish(&BuildFailedEvent{
-			Error: err.Error(),
-		})
-		slog.Info("state file might be corrupted", "err", err)
-		return err
-	}
-	completed.Finished = true
-	completed.Old = true
-	bus.Publish(completed)
-	slog.Info("got previous deployment")
+	// completed, err := getCompletedEvent(ctx, stack)
+	// if err != nil {
+	// 	bus.Publish(&BuildFailedEvent{
+	// 		Error: err.Error(),
+	// 	})
+	// 	log.Info("state file might be corrupted", "err", err)
+	// 	return err
+	// }
+	// completed.Finished = true
+	// completed.Old = true
+	// bus.Publish(completed)
+	log.Info("got previous deployment")
 
 	cli := map[string]interface{}{
 		"command": input.Command,
@@ -319,9 +323,7 @@ func (p *Project) Run(ctx context.Context, input *StackInput) error {
 			"work":     p.PathWorkingDir(),
 			"platform": p.PathPlatformDir(),
 		},
-		"state": map[string]interface{}{
-			"version": completed.Versions,
-		},
+		"state": map[string]interface{}{},
 	}
 	cliBytes, err := json.Marshal(cli)
 	if err != nil {
@@ -382,7 +384,7 @@ func (p *Project) Run(ctx context.Context, input *StackInput) error {
 		files = append(files, absPath)
 	}
 	bus.Publish(&BuildSuccessEvent{files})
-	slog.Info("tracked files")
+	log.Info("tracked files")
 
 	config := auto.ConfigMap{}
 	for provider, args := range p.app.Providers {
@@ -407,7 +409,7 @@ func (p *Project) Run(ctx context.Context, input *StackInput) error {
 	if err != nil {
 		return err
 	}
-	slog.Info("built config")
+	log.Info("built config")
 
 	stream := make(chan events.EngineEvent)
 	eventlog, err := os.Create(p.PathLog("event"))
@@ -495,8 +497,8 @@ func (p *Project) Run(ctx context.Context, input *StackInput) error {
 	}()
 
 	defer func() {
-		slog.Info("parsing state")
-		defer slog.Info("done parsing state")
+		log.Info("parsing state")
+		defer log.Info("done parsing state")
 		complete, err := getCompletedEvent(context.Background(), stack)
 		if err != nil {
 			return
@@ -516,7 +518,7 @@ func (p *Project) Run(ctx context.Context, input *StackInput) error {
 		types.Generate(p.PathConfig(), complete.Links)
 	}()
 
-	slog.Info("running stack command", "cmd", input.Command)
+	log.Info("running stack command", "cmd", input.Command)
 	var summary auto.UpdateSummary
 	started := time.Now().Format(time.RFC3339)
 	defer func() {
@@ -601,7 +603,7 @@ func (p *Project) Run(ctx context.Context, input *StackInput) error {
 		LogLevel: &logLevel,
 	}
 	if input.Verbose {
-		slog.Info("enabling verbose logging")
+		log.Info("enabling verbose logging")
 		logLevel = uint(11)
 		debugLogging = debug.LoggingOptions{
 			LogLevel:      &logLevel,
@@ -658,7 +660,7 @@ func (p *Project) Run(ctx context.Context, input *StackInput) error {
 		err = derr
 	}
 
-	slog.Info("done running stack command")
+	log.Info("done running stack command")
 	if err != nil {
 		slog.Error("stack run failed", "error", err)
 		return ErrStackRunFailed

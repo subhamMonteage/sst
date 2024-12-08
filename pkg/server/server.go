@@ -20,6 +20,7 @@ import (
 	"github.com/sst/ion/pkg/server/resource"
 	"github.com/sst/ion/pkg/server/runtime"
 	"github.com/sst/ion/pkg/server/scrap"
+	"github.com/sst/ion/pkg/server/state"
 )
 
 type Server struct {
@@ -53,6 +54,7 @@ func New() (*Server, error) {
 func (s *Server) Start(ctx context.Context, p *project.Project) error {
 	defer slog.Info("server done")
 
+	state.Register(ctx, p, s.Mux)
 	resource.Register(ctx, p, s.Rpc)
 	aws.Register(ctx, p, s.Rpc)
 	scrap.Register(ctx, p, s.Rpc)
