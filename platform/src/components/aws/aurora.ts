@@ -515,11 +515,21 @@ export class Aurora extends Component implements Link.Linkable {
 
     function normalizeScaling() {
       return output(args.scaling).apply((scaling) => {
+        const max = scaling?.max ?? "4 ACU";
         const min = scaling?.min ?? "0 ACU";
+        const isAutoPauseEnabled = parseACU(min) === 0;
+        if (scaling?.pauseAfter && !isAutoPauseEnabled) {
+          throw new VisibleError(
+            `Cannot configure "pauseAfter" when the minimum ACU is not 0 for the "${name}" Aurora database.`,
+          );
+        }
+
         return {
-          max: scaling?.max ?? "4 ACU",
+          max,
           min,
-          pauseAfter: min === "0 ACU" ? scaling?.pauseAfter ?? "5 minutes" : undefined,
+          pauseAfter: isAutoPauseEnabled
+            ? scaling?.pauseAfter ?? "5 minutes"
+            : undefined,
         };
       });
     }
@@ -651,7 +661,9 @@ export class Aurora extends Component implements Link.Linkable {
             serverlessv2ScalingConfiguration: scaling.apply((scaling) => ({
               maxCapacity: parseACU(scaling.max),
               minCapacity: parseACU(scaling.min),
-              ...(scaling.pauseAfter && { secondsUntilAutoPause: toSeconds(scaling.pauseAfter) }),
+              secondsUntilAutoPause: scaling.pauseAfter
+                ? toSeconds(scaling.pauseAfter)
+                : undefined,
             })),
             skipFinalSnapshot: true,
             storageEncrypted: true,
