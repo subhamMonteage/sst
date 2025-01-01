@@ -514,11 +514,14 @@ export class Aurora extends Component implements Link.Linkable {
     }
 
     function normalizeScaling() {
-      return output(args.scaling).apply((scaling) => ({
-        max: scaling?.max ?? "4 ACU",
-        min: scaling?.min ?? "0 ACU",
-        pauseAfter: scaling?.pauseAfter,
-      }));
+      return output(args.scaling).apply((scaling) => {
+        const min = scaling?.min ?? "0 ACU";
+        return {
+          max: scaling?.max ?? "4 ACU",
+          min,
+          pauseAfter: min === "0 ACU" ? scaling?.pauseAfter ?? "5 minutes" : undefined,
+        };
+      });
     }
 
     function normalizeVpc() {
