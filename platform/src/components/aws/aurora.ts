@@ -515,11 +515,23 @@ export class Aurora extends Component implements Link.Linkable {
 
     function normalizeScaling() {
       return output(args.scaling).apply((scaling) => {
-        return {
+        const min = scaling?.min ?? "0 ACU";
+        const normalizedScaling = {
           max: scaling?.max ?? "4 ACU",
-          min: scaling?.min ?? "0 ACU",
-          pauseAfter: scaling?.pauseAfter ?? "5 minutes",
+          min,
+          // Only set pauseAfter when min is 0 ACU
+          ...(min === "0 ACU" 
+            ? { pauseAfter: scaling?.pauseAfter ?? "5 minutes" }
+            : {}),
         };
+
+        if (scaling?.pauseAfter && normalizedScaling.min !== "0 ACU") {
+          throw new VisibleError(
+            `'pauseAfter' can only be specified when 'min' is "0 ACU". You specified min: "${normalizedScaling.min}"`
+          );
+        }
+
+        return normalizedScaling;
       });
     }
 
