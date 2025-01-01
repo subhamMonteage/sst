@@ -514,30 +514,11 @@ export class Aurora extends Component implements Link.Linkable {
     }
 
     function normalizeScaling() {
-      return output(args.scaling).apply((scaling) => {
-        // Normalize min and max capacity
-        const min = scaling?.min ?? "0 ACU";
-        const max = scaling?.max ?? "4 ACU";
-        
-        // If min is not 0 ACU, pauseAfter should not be set
-        if (min !== "0 ACU" && scaling?.pauseAfter) {
-          throw new VisibleError(
-            `'pauseAfter' can only be specified when 'min' is "0 ACU". You specified min: "${min}"`
-          );
-        }
-
-        // Only include pauseAfter in config when min is 0 ACU
-        const config: { min: `${number} ACU`; max: `${number} ACU`; pauseAfter?: string } = {
-          min,
-          max,
-        };
-
-        if (min === "0 ACU") {
-          config.pauseAfter = scaling?.pauseAfter ?? "5 minutes";
-        }
-
-        return config;
-      });
+      return output(args.scaling).apply((scaling) => ({
+        max: scaling?.max ?? "4 ACU",
+        min: scaling?.min ?? "0 ACU",
+        pauseAfter: scaling?.pauseAfter,
+      }));
     }
 
     function normalizeVpc() {
@@ -667,7 +648,7 @@ export class Aurora extends Component implements Link.Linkable {
             serverlessv2ScalingConfiguration: scaling.apply((scaling) => ({
               maxCapacity: parseACU(scaling.max),
               minCapacity: parseACU(scaling.min),
-              secondsUntilAutoPause: toSeconds(scaling.pauseAfter),
+              ...(scaling.pauseAfter && { secondsUntilAutoPause: toSeconds(scaling.pauseAfter) }),
             })),
             skipFinalSnapshot: true,
             enableHttpEndpoint: true,
