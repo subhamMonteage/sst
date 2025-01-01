@@ -515,23 +515,28 @@ export class Aurora extends Component implements Link.Linkable {
 
     function normalizeScaling() {
       return output(args.scaling).apply((scaling) => {
+        // Normalize min and max capacity
         const min = scaling?.min ?? "0 ACU";
-        const normalizedScaling = {
-          max: scaling?.max ?? "4 ACU",
-          min,
-          // Only set pauseAfter when min is 0 ACU
-          ...(min === "0 ACU" 
-            ? { pauseAfter: scaling?.pauseAfter ?? "5 minutes" }
-            : {}),
-        };
-
-        if (scaling?.pauseAfter && normalizedScaling.min !== "0 ACU") {
+        const max = scaling?.max ?? "4 ACU";
+        
+        // If min is not 0 ACU, pauseAfter should not be set
+        if (min !== "0 ACU" && scaling?.pauseAfter) {
           throw new VisibleError(
-            `'pauseAfter' can only be specified when 'min' is "0 ACU". You specified min: "${normalizedScaling.min}"`
+            `'pauseAfter' can only be specified when 'min' is "0 ACU". You specified min: "${min}"`
           );
         }
 
-        return normalizedScaling;
+        // Only include pauseAfter in config when min is 0 ACU
+        const config: { min: `${number} ACU`; max: `${number} ACU`; pauseAfter?: string } = {
+          min,
+          max,
+        };
+
+        if (min === "0 ACU") {
+          config.pauseAfter = scaling?.pauseAfter ?? "5 minutes";
+        }
+
+        return config;
       });
     }
 
