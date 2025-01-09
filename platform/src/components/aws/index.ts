@@ -29,6 +29,7 @@ export * from "./sns-topic.js";
 export * from "./solid-start.js";
 export * from "./tanstack-start.js";
 export * from "./nuxt.js";
+export * from "./mysql.js";
 export * from "./static-site.js";
 export * from "./svelte-kit.js";
 export * from "./vector.js";
