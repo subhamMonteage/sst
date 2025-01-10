@@ -22,7 +22,9 @@ export interface InputArgs extends Prettify<FunctionPermissionArgs> { }
 export function permission(input: InputArgs) {
   return {
     type: "aws.permission" as const,
-    ...input,
+    effect: input.effect ?? "allow",
+    actions: input.actions,
+    resources: input.resources,
   };
 }
 
