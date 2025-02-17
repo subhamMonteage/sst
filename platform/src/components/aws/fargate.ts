@@ -1063,7 +1063,7 @@ export function createTaskDefinition(
                   name: container.logging.name,
                   retentionInDays: RETENTION[container.logging.retention],
                 },
-                { parent },
+                { parent, ignoreChanges: ["name"] },
               ),
             );
           })().name,

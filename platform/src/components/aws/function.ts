@@ -2068,7 +2068,7 @@ export class Function extends Component implements Link.Linkable {
               }`,
               retentionInDays: RETENTION[logging.retention],
             },
-            { parent },
+            { parent, ignoreChanges: ["name"] },
           ),
         );
       });
