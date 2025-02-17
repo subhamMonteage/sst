@@ -172,8 +172,7 @@ export interface EmailArgs {
 
 interface EmailRef {
   ref: boolean;
-  identity: sesv2.EmailIdentity;
-  configurationSet: sesv2.ConfigurationSet;
+  sender: Input<string>;
 }
 
 /**
@@ -262,16 +261,16 @@ export class Email extends Component implements Link.Linkable {
 
   constructor(name: string, args: EmailArgs, opts?: ComponentResourceOptions) {
     super(__pulumiType, name, args, opts);
+    const self = this;
 
     if (args && "ref" in args) {
-      const ref = args as unknown as EmailRef;
+      const ref = reference();
       this._sender = ref.identity.emailIdentity;
       this.identity = ref.identity;
       this.configurationSet = ref.configurationSet;
       return;
     }
 
-    const parent = this;
     const isDomain = checkIsDomain();
     const dns = normalizeDns();
     const dmarc = normalizeDmarc();
@@ -288,6 +287,27 @@ export class Email extends Component implements Link.Linkable {
     this._sender = output(args.sender);
     this.identity = identity;
     this.configurationSet = configurationSet;
+
+    function reference() {
+      const ref = args as EmailRef;
+      const identity = sesv2.EmailIdentity.get(
+        `${name}Identity`,
+        ref.sender,
+        undefined,
+        { parent: self },
+      );
+      const configurationSet = sesv2.ConfigurationSet.get(
+        `${name}Config`,
+        identity.configurationSetName.apply((v) => v!),
+        undefined,
+        { parent: self },
+      );
+
+      return {
+        identity,
+        configurationSet,
+      };
+    }
 
     function checkIsDomain() {
       return output(args.sender).apply((sender) => !sender.includes("@"));
@@ -321,7 +341,7 @@ export class Email extends Component implements Link.Linkable {
           args.transform?.configurationSet,
           `${name}Config`,
           { configurationSetName: "" },
-          { parent },
+          { parent: self },
         ),
       );
     }
@@ -335,7 +355,7 @@ export class Email extends Component implements Link.Linkable {
             emailIdentity: args.sender,
             configurationSetName: configurationSet.configurationSetName,
           },
-          { parent },
+          { parent: self },
         ),
       );
     }
@@ -361,7 +381,7 @@ export class Email extends Component implements Link.Linkable {
                 enabled: true,
               },
             },
-            { parent },
+            { parent: self },
           );
         }),
       );
@@ -380,7 +400,7 @@ export class Email extends Component implements Link.Linkable {
                 name: interpolate`${token}._domainkey.${args.sender}`,
                 value: `${token}.dkim.amazonses.com`,
               },
-              { parent },
+              { parent: self },
             ),
           );
         },
@@ -398,7 +418,7 @@ export class Email extends Component implements Link.Linkable {
             name: interpolate`_dmarc.${args.sender}`,
             value: dmarc,
           },
-          { parent },
+          { parent: self },
         );
       });
     }
@@ -409,7 +429,7 @@ export class Email extends Component implements Link.Linkable {
         {
           domain: args.sender,
         },
-        { parent, dependsOn: identity },
+        { parent: self, dependsOn: identity },
       );
     }
   }
@@ -492,24 +512,14 @@ export class Email extends Component implements Link.Linkable {
     sender: Input<string>,
     opts?: ComponentResourceOptions,
   ) {
-    const identity = sesv2.EmailIdentity.get(
-      `${name}Identity`,
-      sender,
-      undefined,
+    return new Email(
+      name,
+      {
+        ref: true,
+        sender,
+      } as EmailArgs,
       opts,
     );
-    const configSet = sesv2.ConfigurationSet.get(
-      `${name}Config`,
-      identity.configurationSetName.apply((v) => v!),
-      undefined,
-      opts,
-    );
-
-    return new Email(name, {
-      ref: true,
-      identity,
-      configurationSet: configSet,
-    } as unknown as EmailArgs);
   }
 }
 
