@@ -393,15 +393,16 @@ You can also disable Issues from your workspace settings, if you are using a sep
 Each update in your app also gets a unique URL, a **_permalink_**. This is printed out by the SST CLI.
 
 ```bash title="sst deploy"
-↗  Permalink   https://sst.dev/u/4086b5d
+↗  Permalink  https://sst.dev/u/318d3879 
 ```
 
 You can view these updates in the Console. Each update shows:
 
-1. Full list of all the resources that were modified
-2. Changes in their inputs or outputs
-3. Any logs from Docker or site builds
-4. SST command that triggered the update
+1. Full list of **all the resources** that were modified
+2. Changes in their **inputs and outputs**
+3. Any Docker or site **builds logs**
+4. **CLI command** that triggered the update
+5. **Git commit**, if it was an auto-deploy
 
 The permalink is useful for sharing with your team and debugging any issues with your deploys.
 
@@ -410,6 +411,10 @@ The permalink is useful for sharing with your team and debugging any issues with
   <source srcset={consoleUpdatesLight.src} media="(prefers-color-scheme: light)" />
   <Image src={consoleUpdatesLight} alt="SST Console Updates" />
 </picture>
+
+The CLI updates your [state](/docs/state/) with the event log from each update and generated a globally unique id. If your AWS account is connected to the Console, it'll pull the state and event log to generate the details for the update permalink.
+
+When you visit the permalink, the Console looks up the id of the update and redirects you to the right app in your workspace.
 
 ---
 
