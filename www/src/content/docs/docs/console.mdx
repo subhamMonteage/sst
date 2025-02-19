@@ -69,6 +69,12 @@ Currently the Console only supports apps **deployed to AWS**.
 
    This stack will scan all the regions in your account for SST apps and subscribe to them. Once created, you'll see all your apps, stages, and the functions in the apps.
 
+   If you are connecting a newly created AWS account, you might run into the following error while creating the stack.
+
+   > Resource handler returned message: "Specified ReservedConcurrentExecutions for function decreases account's UnreservedConcurrentExecution below its minimum value
+
+   This happens because AWS has been limiting the concurrency of Lambda functions for new accounts. It's a good idea to increase this limit before you go to production anyway. To do so, you can [request a quota increase](https://repost.aws/knowledge-center/lambda-concurrency-limit-increase) to the default value of 1000.
+
 3. **Invite your team**
 
    Use the email address of your teammates to invite them. They just need to login with the email you've used and they'll be able to join your workspace.
