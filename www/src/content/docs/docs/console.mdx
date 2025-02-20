@@ -260,6 +260,21 @@ A couple of things to note.
 
 ---
 
+##### Active resources
+
+A resource is considered active if it comes from a stage that has been around for at least 2 weeks. And, was updated during the month.
+
+Let's look at a few different scenarios to see how this works.
+
+- A stage that was created 5 months ago and was deployed this month, is active.
+- A stage that was created 5 months ago but was not deployed this month, is not active.
+- A stage that was created 12 days ago, is not active.
+- A stage that was created 20 days ago and was removed 10 days ago, is not active.
+- A stage that was created 5 months ago, deployed this month, then removed this month, is active.
+- A stage created 5 months ago, was not deployed this month, and removed this month, is not active.
+
+---
+
 #### Old pricing
 
 Previously, the Console pricing was based on the number of times the Lambda functions in your SST apps are invoked per month and it used the following tiers.
@@ -732,12 +747,6 @@ Here are some frequently asked questions about the Console.
   You can see a [full list of resources](#resources) if you go to an app in your Console and navigate to a stage in it.
 
   For some context, the Console is itself a pretty large [SST app](https://github.com/sst/console) and it has around 320 resources.
-
-- How are active resource counted?
-
-  At the start of every month, or billing cycle, the Console will track the stages that have been updated. All the resources in these stages are considered active for the month.
-
-  However, if the only update to a stage in a month was to remove it, the resources in that stage will not be counted as being active.
 
 - Do PR stages also count?
 
