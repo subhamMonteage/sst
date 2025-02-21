@@ -26,7 +26,7 @@ docker buildx create --name multi --driver docker-container --use
 docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/sst/sst/bridge-task:$timestamp -t ghcr.io/sst/sst/bridge-task:latest .
 
 if [ "$DOCKER_PUSH" = "true" ]; then
-  docker push ghcr.io/sst/sst/bridge-task -a
+  docker push ghcr.io/sst/sst/bridge-task:$timestamp -a
 fi
 
 
