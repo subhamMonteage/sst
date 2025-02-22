@@ -1,8 +1,8 @@
 [project]
 name = "functions"
 version = "0.1.0"
-description = "Lambda function (container-mode)handlers"
-dependencies = ["core", "sst"]
+description = "Lambda function handlers"
+dependencies = ["core", "sst", "fastapi==0.115.8", "mangum==0.19.0"]
 requires-python = "==3.11.*"
 
 [build-system]

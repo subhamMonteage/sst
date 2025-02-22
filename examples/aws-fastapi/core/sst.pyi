@@ -6,4 +6,11 @@ class Resource:
     class App:
         name: str
         stage: str
+    class FastAPI:
+        name: str
+        type: str
+        url: str
+    class MyLinkableValue:
+        foo: str
+        type: str
 

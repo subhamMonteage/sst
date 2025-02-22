@@ -1,5 +1,5 @@
 [project]
-name = "aws-python"
+name = "aws-fastapi"
 version = "0.1.0"
 description = "A SST app"
 authors = [{ name = "Nick Wall", email = "mail@walln.dev" }]
