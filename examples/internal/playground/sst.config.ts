@@ -14,6 +14,7 @@ export default $config({
     const vpc = addVpc();
     const bucket = addBucket();
     const auth = addAuth();
+    addAstro4Site();
     //const queue = addQueue();
     //const efs = addEfs();
     //const email = addEmail();
@@ -40,7 +41,9 @@ export default $config({
     }
 
     function addBucket() {
-      const bucket = new sst.aws.Bucket("MyBucket");
+      const bucket = new sst.aws.Bucket("MyBucket", {
+        access: "public",
+      });
 
       //const queue = new sst.aws.Queue("MyQueue");
       //queue.subscribe("functions/bucket/index.handler");
@@ -375,6 +378,14 @@ export default $config({
       });
 
       return bus;
+    }
+
+    function addAstro4Site() {
+      new sst.aws.Astro("MyAstro4Site", {
+        path: "sites/astro4",
+        regions: ["us-east-1", "us-west-1"],
+        link: [bucket],
+      });
     }
   },
 });
