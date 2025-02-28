@@ -4,15 +4,12 @@ import type { BuildMetaConfig, BuildMetaFileName } from "astro-sst/build-meta";
 import { ComponentResourceOptions, Output, all, output } from "@pulumi/pulumi";
 import { Function } from "./function.js";
 import {
-  Plan,
   SsrSiteArgs,
-  createBucket,
-  createDevServer,
-  createServersAndDistribution,
+  createDevResources,
+  createResources,
   prepare,
-  useCloudFrontFunctionHostHeaderInjection,
   validatePlan,
-} from "./ssr-site.js";
+} from "./ssr-site-new.js";
 import { Cdn } from "./cdn.js";
 import { Bucket } from "./bucket.js";
 import { Component } from "./../component.js";
@@ -83,6 +80,19 @@ export interface AstroArgs extends SsrSiteArgs {
    * ```
    */
   permissions?: SsrSiteArgs["permissions"];
+  /**
+   * The regions that the [server function](#nodes-server) in your Astro site will be
+   * deployed to. Requests will be routed to the nearest region based on the user's location.
+   *
+   * @default The default region of the SST app
+   * @example
+   * ```js
+   * {
+   *   regions: ["us-east-1", "eu-west-1"]
+   * }
+   * ```
+   */
+  regions?: SsrSiteArgs["regions"];
   /**
    * Path to the directory where your Astro site is located.  This path is relative to your `sst.config.ts`.
    *
@@ -358,11 +368,11 @@ export class Astro extends Component implements Link.Linkable {
     super(__pulumiType, name, args, opts);
 
     const parent = this;
-    const { sitePath, partition } = prepare(parent, args);
+    const { sitePath, regions } = prepare(parent, args);
     const dev = normalizeDev();
 
     if (dev.enabled) {
-      const server = createDevServer(parent, name, args);
+      const { server } = createDevResources(parent, name, args);
       this.devUrl = dev.url;
       this.registerOutputs({
         _metadata: {
@@ -378,25 +388,22 @@ export class Astro extends Component implements Link.Linkable {
       return;
     }
 
-    const { access, bucket } = createBucket(parent, name, partition, args);
     const outputPath = buildApp(parent, name, args, sitePath);
     const buildMeta = loadBuildMetadata();
     const plan = buildPlan();
-    const { distribution, ssrFunctions, edgeFunctions } =
-      createServersAndDistribution(
-        parent,
-        name,
-        args,
-        outputPath,
-        access,
-        bucket,
-        plan,
-      );
-    const serverFunction = ssrFunctions[0] ?? Object.values(edgeFunctions)[0];
+    const { distribution, bucket, servers } = createResources(
+      parent,
+      name,
+      args,
+      outputPath,
+      plan,
+      regions,
+    );
+    const server = servers.apply((servers) => servers[0]);
 
     this.assets = bucket;
     this.cdn = distribution;
-    this.server = serverFunction;
+    this.server = server;
     this.registerOutputs({
       _hint: all([this.cdn.domainUrl, this.cdn.url]).apply(
         ([domainUrl, url]) => domainUrl ?? url,
@@ -405,12 +412,12 @@ export class Astro extends Component implements Link.Linkable {
         mode: "deployed",
         path: sitePath,
         url: distribution.apply((d) => d.domainUrl ?? d.url),
-        edge: plan.edge,
-        server: serverFunction.arn,
+        edge: false,
+        server: server.arn,
       },
       _dev: {
         ...dev.outputs,
-        aws: { role: serverFunction.nodes.role.arn },
+        aws: { role: server.nodes.role.arn },
       },
     });
 
@@ -450,162 +457,71 @@ export class Astro extends Component implements Link.Linkable {
 
     function buildPlan() {
       return all([outputPath, buildMeta]).apply(([outputPath, buildMeta]) => {
-        const isStatic = buildMeta.outputMode === "static";
-        const edge = buildMeta.deploymentStrategy === "edge";
-        const serverConfig = {
-          handler: path.join(outputPath, "dist", "server", "entry.handler"),
-          streaming: buildMeta.responseMode === "stream",
-        };
-        const plan: Plan = {
-          edge,
-          cloudFrontFunctions: {
-            server: {
-              injections: [
-                useCloudFrontFunctionHostHeaderInjection(),
-                useCloudFrontRoutingInjection(buildMeta),
-              ],
-            },
-            serverHostOnly: {
-              injections: [useCloudFrontFunctionHostHeaderInjection()],
-            },
-          },
-          origins: {
-            staticsServer: {
-              s3: {
-                copy: [
-                  {
-                    from: buildMeta.clientBuildOutputDir,
-                    to: "",
-                    cached: true,
-                    versionedSubDir: buildMeta.clientBuildVersionedSubDir,
-                  },
-                ],
-              },
-            },
-          },
-          behaviors: [],
-          errorResponses: [],
-        };
-
-        if (edge) {
-          plan.edgeFunctions = {
-            edgeServer: {
-              function: serverConfig,
-            },
-          };
-          plan.behaviors.push(
-            {
-              cacheType: "server",
-              cfFunction: "server",
-              edgeFunction: "edgeServer",
-              origin: "staticsServer",
-            },
-            ...fs
-              .readdirSync(
-                path.join(outputPath, buildMeta.clientBuildOutputDir),
-                { withFileTypes: true },
-              )
-              .map(
-                (item) =>
-                  ({
-                    cacheType: "static",
-                    pattern: item.isDirectory() ? `${item.name}/*` : item.name,
-                    origin: "staticsServer",
-                  }) as const,
-              ),
+        if (buildMeta.deploymentStrategy === "edge") {
+          throw new Error(
+            `The "edge" deployment strategy is deprecated. Please update your Astro config to use the "regional" deployment strategy instead. You can then deploy to multiple regions by using the "regions" option in your Astro component.`,
           );
-        } else {
-          if (isStatic) {
-            plan.behaviors.push({
-              cacheType: "static",
-              cfFunction: "server",
-              origin: "staticsServer",
-            });
-          } else {
-            plan.cloudFrontFunctions!.imageServiceCfFunction = {
-              injections: [useCloudFrontFunctionHostHeaderInjection()],
-            };
+        }
 
-            plan.origins.regionalServer = {
-              server: {
-                function: serverConfig,
+        const isStatic = buildMeta.outputMode === "static";
+        return validatePlan({
+          cloudFrontFunction: {
+            injection: useCloudFrontRoutingInjection(buildMeta),
+          },
+          server: isStatic
+            ? undefined
+            : {
+                handler: path.join(
+                  outputPath,
+                  "dist",
+                  "server",
+                  "entry.handler",
+                ),
+                streaming: buildMeta.responseMode === "stream",
               },
-            };
-
-            plan.origins.fallthroughServer = {
-              group: {
-                primaryOriginName: "staticsServer",
-                fallbackOriginName: "regionalServer",
-                fallbackStatusCodes: [403, 404],
-              },
-            };
-
-            plan.behaviors.push(
+          s3: {
+            copy: [
               {
-                cacheType: "server",
-                cfFunction: "server",
-                origin: "fallthroughServer",
-                allowedMethods: ["GET", "HEAD", "OPTIONS"],
+                from: buildMeta.clientBuildOutputDir,
+                to: "",
+                cached: true,
+                versionedSubDir: buildMeta.clientBuildVersionedSubDir,
               },
-              {
-                cacheType: "static",
-                pattern: `${buildMeta.clientBuildVersionedSubDir}/*`,
-                origin: "staticsServer",
-              },
-              {
-                cacheType: "server",
-                pattern: "_image",
-                cfFunction: "imageServiceCfFunction",
-                origin: "regionalServer",
-                allowedMethods: ["GET", "HEAD", "OPTIONS"],
-              },
-              ...buildMeta.serverRoutes?.map(
-                (route) =>
-                  ({
-                    cacheType: "server",
-                    cfFunction: "serverHostOnly",
-                    pattern: route,
-                    origin: "regionalServer",
-                  }) as const,
-              ),
-            );
-          }
-
-          buildMeta.routes
-            .filter(
-              ({ type, route }) =>
-                type === "page" && /^\/\d{3}\/?$/.test(route),
-            )
-            .forEach(({ route, prerender }) => {
-              switch (route) {
-                case "/404":
-                case "/404/":
-                  plan.errorResponses?.push({
+            ],
+          },
+          errorResponses: buildMeta.routes.flatMap(
+            ({ type, route, prerender }) => {
+              if (type === "page" && ["/404", "/404/"].includes(route)) {
+                return [
+                  {
                     errorCode: 404,
                     responsePagePath: prerender ? "/404.html" : "/404",
                     responseCode: 404,
-                  });
-                  if (isStatic) {
-                    plan.errorResponses?.push({
-                      errorCode: 403,
-                      responsePagePath: "/404.html",
-                      responseCode: 404,
-                    });
-                  }
-                  break;
-                case "/500":
-                case "/500/":
-                  plan.errorResponses?.push({
+                  },
+                  ...(isStatic
+                    ? [
+                        {
+                          errorCode: 403,
+                          responsePagePath: "/404.html",
+                          responseCode: 404,
+                        },
+                      ]
+                    : []),
+                ];
+              }
+              if (type === "page" && ["/500", "/500/"].includes(route)) {
+                return [
+                  {
                     errorCode: 500,
                     responsePagePath: prerender ? "/500.html" : "/500",
                     responseCode: 500,
-                  });
-                  break;
+                  },
+                ];
               }
-            });
-        }
-
-        return validatePlan(plan);
+              return [];
+            },
+          ),
+        });
       });
     }
   }
