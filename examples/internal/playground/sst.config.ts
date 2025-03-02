@@ -15,6 +15,8 @@ export default $config({
     const bucket = addBucket();
     const auth = addAuth();
     addAstro4Site();
+    addReactRouter7SsrSite();
+    addReactRouter7CsrSite();
     //const queue = addQueue();
     //const efs = addEfs();
     //const email = addEmail();
@@ -382,8 +384,25 @@ export default $config({
 
     function addAstro4Site() {
       new sst.aws.Astro("MyAstro4Site", {
+        domain: "astro4.playground.sst.sh",
         path: "sites/astro4",
         regions: ["us-east-1", "us-west-1"],
+        link: [bucket],
+      });
+    }
+
+    function addReactRouter7SsrSite() {
+      new sst.aws.React("MyReactRouter7SsrSite", {
+        domain: "reactrouter7ssr.playground.sst.sh",
+        path: "sites/react-router-7-ssr",
+        link: [bucket],
+      });
+    }
+
+    function addReactRouter7CsrSite() {
+      new sst.aws.React("MyReactRouter7CsrSite", {
+        domain: "reactrouter7csr.playground.sst.sh",
+        path: "sites/react-router-7-csr",
         link: [bucket],
       });
     }

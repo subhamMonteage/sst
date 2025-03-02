@@ -17,6 +17,14 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Bucket"
     }
+    "MyReactRouter7CsrSite": {
+      "type": "sst.aws.React"
+      "url": string
+    }
+    "MyReactRouter7SsrSite": {
+      "type": "sst.aws.React"
+      "url": string
+    }
     "MyVpc": {
       "type": "sst.aws.Vpc"
     }
