@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import type { BuildMetaConfig, BuildMetaFileName } from "astro-sst/build-meta";
-import { ComponentResourceOptions, Output, all, output } from "@pulumi/pulumi";
+import { ComponentResourceOptions, Output, all } from "@pulumi/pulumi";
 import { Function } from "./function.js";
 import {
   SsrSiteArgs,
@@ -15,7 +15,6 @@ import { Bucket } from "./bucket.js";
 import { Component } from "./../component.js";
 import { Link } from "../link.js";
 import { buildApp } from "../base/base-ssr-site.js";
-import { URL_UNAVAILABLE } from "./linkable.js";
 
 export interface AstroArgs extends SsrSiteArgs {
   /**
@@ -368,8 +367,7 @@ export class Astro extends Component implements Link.Linkable {
     super(__pulumiType, name, args, opts);
 
     const parent = this;
-    const { sitePath, regions } = prepare(parent, args);
-    const dev = normalizeDev();
+    const { dev, sitePath, regions } = prepare(parent, args);
 
     if (dev.enabled) {
       const { server } = createDevResources(parent, name, args);
@@ -420,26 +418,6 @@ export class Astro extends Component implements Link.Linkable {
         aws: { role: server.nodes.role.arn },
       },
     });
-
-    function normalizeDev() {
-      const enabled = $dev && args.dev !== false;
-      const devArgs = args.dev || {};
-
-      return {
-        enabled,
-        url: output(devArgs.url ?? URL_UNAVAILABLE),
-        outputs: {
-          title: devArgs.title,
-          command: output(devArgs.command ?? "npm run dev"),
-          autostart: output(devArgs.autostart ?? true),
-          directory: output(devArgs.directory ?? sitePath),
-          environment: args.environment,
-          links: output(args.link || [])
-            .apply(Link.build)
-            .apply((links) => links.map((link) => link.name)),
-        },
-      };
-    }
 
     function loadBuildMetadata() {
       return outputPath.apply((outputPath) => {

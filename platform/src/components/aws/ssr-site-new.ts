@@ -26,7 +26,6 @@ import {
   cloudfront,
   getRegionOutput,
   lambda,
-  Provider,
   Region,
   types,
 } from "@pulumi/aws";
@@ -34,6 +33,8 @@ import { OriginAccessControl } from "./providers/origin-access-control.js";
 import { readDirRecursivelySync } from "../../util/fs.js";
 import { KvKeys } from "./providers/kv-keys.js";
 import { useProvider } from "./helpers/provider.js";
+import { Link } from "../link.js";
+import { URL_UNAVAILABLE } from "./linkable.js";
 
 const supportedRegions = {
   "af-south-1": { lat: -33.9249, lon: 18.4241 }, // Cape Town, South Africa
@@ -315,9 +316,7 @@ export interface SsrSiteArgs extends BaseSsrSiteArgs {
          */
         injection: Input<string>;
         /**
-         * The KV stores to associate with the viewer request function.
-         *
-         * Takes a list of CloudFront KeyValueStore ARNs.
+         * The KV store to associate with the viewer request function.
          *
          * @example
          * ```js
@@ -325,12 +324,16 @@ export interface SsrSiteArgs extends BaseSsrSiteArgs {
          *   server: {
          *     edge: {
          *       viewerRequest: {
-         *         kvStores: ["arn:aws:cloudfront::123456789012:key-value-store/my-store"]
+         *         kvStore: "arn:aws:cloudfront::123456789012:key-value-store/my-store"
          *       }
          *     }
          *   }
          * }
          * ```
+         */
+        kvStore?: Input<string>;
+        /**
+         * @deprecated Use `kvStore` instead because CloudFront Functions only support one KV store.
          */
         kvStores?: Input<Input<string>[]>;
       }>;
@@ -373,9 +376,7 @@ export interface SsrSiteArgs extends BaseSsrSiteArgs {
          */
         injection: Input<string>;
         /**
-         * The KV stores to associate with the viewer response function.
-         *
-         * Takes a list of CloudFront KeyValueStore ARNs.
+         * The KV store to associate with the viewer response function.
          *
          * @example
          * ```js
@@ -383,12 +384,16 @@ export interface SsrSiteArgs extends BaseSsrSiteArgs {
          *   server: {
          *     edge: {
          *       viewerResponse: {
-         *         kvStores: ["arn:aws:cloudfront::123456789012:key-value-store/my-store"]
+         *         kvStore: "arn:aws:cloudfront::123456789012:key-value-store/my-store"
          *       }
          *     }
          *   }
          * }
          * ```
+         */
+        kvStore?: Input<string>;
+        /**
+         * @deprecated Use `kvStore` instead because CloudFront Functions only support one KV store.
          */
         kvStores?: Input<Input<string>[]>;
       }>;
@@ -418,7 +423,28 @@ export interface SsrSiteArgs extends BaseSsrSiteArgs {
 export function prepare(parent: ComponentResource, args: SsrSiteArgs) {
   const regions = normalizeRegions();
   const sitePath = regions.apply(() => normalizeSitePath());
-  return { sitePath, regions };
+  const dev = normalizeDev();
+  return { dev, sitePath, regions };
+
+  function normalizeDev() {
+    const enabled = $dev && args.dev !== false;
+    const devArgs = args.dev || {};
+
+    return {
+      enabled,
+      url: output(devArgs.url ?? URL_UNAVAILABLE),
+      outputs: {
+        title: devArgs.title,
+        command: output(devArgs.command ?? "npm run dev"),
+        autostart: output(devArgs.autostart ?? true),
+        directory: output(devArgs.directory ?? sitePath),
+        environment: args.environment,
+        links: output(args.link || [])
+          .apply(Link.build)
+          .apply((links) => links.map((link) => link.name)),
+      },
+    };
+  }
 
   function normalizeSitePath() {
     return output(args.path).apply((sitePath) => {
@@ -782,7 +808,7 @@ export function createResources(
       ([argsServer, servers, outputPath, plan]) => {
         const userConfig = argsServer?.edge?.viewerRequest;
         const userInjection = userConfig?.injection;
-        const userKvStore = userConfig?.kvStores?.[0];
+        const userKvStore = userConfig?.kvStore ?? userConfig?.kvStores?.[0];
         const frameworkInjection = plan.cloudFrontFunction.injection;
         const blockCloudfrontUrlInjection = args.domain
           ? useCfBlockCloudFrontUrlInjection()
@@ -859,6 +885,14 @@ export function createResources(
     if (v === "s3") return event.request;
   } catch (e) {}
 
+  try {
+    const v = await cf.kvs().get("${kvNamespace}:" + decodeURIComponent(event.request.uri) + "/index.html");
+    if (v === "s3") {
+      event.request.uri = event.request.uri + "/index.html";
+      return event.request;
+    }
+  } catch (e) {}
+
   event.request.headers["x-forwarded-host"] = event.request.headers.host;
   cf.updateRequestOrigin({
     domainName: ${domainNameInjection},
@@ -895,7 +929,7 @@ async function handler(event) {
     return all([args.server]).apply(([server]) => {
       const userConfig = server?.edge?.viewerResponse;
       const userInjection = userConfig?.injection;
-      const kvStoreArn = userConfig?.kvStores?.[0];
+      const kvStoreArn = userConfig?.kvStore ?? userConfig?.kvStores?.[0];
 
       if (!userConfig && !kvStoreArn) return;
 
