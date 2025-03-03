@@ -455,6 +455,7 @@ export class Astro extends Component implements Link.Linkable {
                   "server",
                   "entry.handler",
                 ),
+                nodejs: { install: ["sharp"] },
                 streaming: buildMeta.responseMode === "stream",
               },
           s3: {
