@@ -9,6 +9,10 @@ declare module "sst" {
       "type": "sst.aws.Astro"
       "url": string
     }
+    "MyAstro5Site": {
+      "type": "sst.aws.Astro"
+      "url": string
+    }
     "MyAuth": {
       "type": "sst.aws.Auth"
       "url": string

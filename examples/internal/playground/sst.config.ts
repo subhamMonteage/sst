@@ -15,6 +15,7 @@ export default $config({
     const bucket = addBucket();
     const auth = addAuth();
     addAstro4Site();
+    addAstro5Site();
     addReactRouter7SsrSite();
     addReactRouter7CsrSite();
     //const queue = addQueue();
@@ -387,6 +388,14 @@ export default $config({
         domain: "astro4.playground.sst.sh",
         path: "sites/astro4",
         regions: ["us-east-1", "us-west-1"],
+        link: [bucket],
+      });
+    }
+
+    function addAstro5Site() {
+      new sst.aws.Astro("MyAstro5Site", {
+        domain: "astro5.playground.sst.sh",
+        path: "sites/astro5",
         link: [bucket],
       });
     }
