@@ -901,6 +901,9 @@ export function createResources(
       protocol: "https",
       sslProtocols: ["TLSv1.2"],
     },
+    originAccessControlConfig: {
+      enabled: false,
+    }
   });`;
         })();
 
