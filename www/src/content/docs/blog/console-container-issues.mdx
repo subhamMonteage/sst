@@ -7,7 +7,13 @@ lastUpdated: 2025-03-04
 pagefind: false
 ---
 
+import { Image } from "astro:assets"
+
+import issues from '../../../assets/blog/sst-console-container-issues.png';
+
 [Issues](/docs/console#issues) now reports errors from Node.js container applications. Previously, only errors from Lambda functions were reported.
+
+<Image src={issues} alt="SST Console Container Issues" />
 
 ---
 
