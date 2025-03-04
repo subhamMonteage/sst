@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "astro": "^5.4.1",
-    "astro-sst": "3.0.3",
-    "sst": "3.9.22"
+    "astro-sst": "3.0.4",
+    "sst": "3.9.25"
   }
 }

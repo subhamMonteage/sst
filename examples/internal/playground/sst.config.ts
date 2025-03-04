@@ -396,6 +396,7 @@ export default $config({
       new sst.aws.Astro("MyAstro5Site", {
         domain: "astro5.playground.sst.sh",
         path: "sites/astro5",
+        //path: "sites/astro5-static",
         link: [bucket],
       });
     }
