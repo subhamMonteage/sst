@@ -16,8 +16,7 @@ export default $config({
     const auth = addAuth();
     addAstro4Site();
     addAstro5Site();
-    addReactRouter7SsrSite();
-    addReactRouter7CsrSite();
+    addReactRouter7Site();
     //const queue = addQueue();
     //const efs = addEfs();
     //const email = addEmail();
@@ -401,18 +400,11 @@ export default $config({
       });
     }
 
-    function addReactRouter7SsrSite() {
-      new sst.aws.React("MyReactRouter7SsrSite", {
-        domain: "reactrouter7ssr.playground.sst.sh",
+    function addReactRouter7Site() {
+      new sst.aws.React("MyReactRouter7Site", {
+        domain: "reactrouter7.playground.sst.sh",
         path: "sites/react-router-7-ssr",
-        link: [bucket],
-      });
-    }
-
-    function addReactRouter7CsrSite() {
-      new sst.aws.React("MyReactRouter7CsrSite", {
-        domain: "reactrouter7csr.playground.sst.sh",
-        path: "sites/react-router-7-csr",
+        //path: "sites/react-router-7-csr",
         link: [bucket],
       });
     }
