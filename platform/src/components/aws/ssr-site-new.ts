@@ -86,7 +86,7 @@ export const validatePlan = (input: {
       versionedSubDir?: string;
     }[];
   };
-  cloudFrontFunction: {
+  cloudFrontFunction?: {
     injection: string;
   };
   errorResponses?: types.input.cloudfront.DistributionCustomErrorResponse[];
@@ -809,7 +809,7 @@ export function createResources(
         const userConfig = argsServer?.edge?.viewerRequest;
         const userInjection = userConfig?.injection;
         const userKvStore = userConfig?.kvStore ?? userConfig?.kvStores?.[0];
-        const frameworkInjection = plan.cloudFrontFunction.injection;
+        const frameworkInjection = plan.cloudFrontFunction?.injection;
         const blockCloudfrontUrlInjection = args.domain
           ? useCfBlockCloudFrontUrlInjection()
           : "";

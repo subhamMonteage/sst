@@ -427,10 +427,6 @@ export class React extends Component implements Link.Linkable {
       return all([outputPath, buildMeta]).apply(([outputPath, buildMeta]) => {
         const indexPage = "index.html";
         return validatePlan({
-          cloudFrontFunction: {
-            //injection: useCloudFrontFunctionHostHeaderInjection(),
-            injection: "",
-          },
           server: buildMeta.serverPath
             ? createServerLambdaBundle(outputPath)
             : undefined,
