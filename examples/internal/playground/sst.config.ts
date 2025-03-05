@@ -17,6 +17,7 @@ export default $config({
     addAstro4Site();
     addAstro5Site();
     addReactRouter7Site();
+    addTanstackSite();
     //const queue = addQueue();
     //const efs = addEfs();
     //const email = addEmail();
@@ -405,6 +406,14 @@ export default $config({
         domain: "reactrouter7.playground.sst.sh",
         path: "sites/react-router-7-ssr",
         //path: "sites/react-router-7-csr",
+        link: [bucket],
+      });
+    }
+
+    function addTanstackSite() {
+      new sst.aws.TanstackStart("MyTanstackSite", {
+        domain: "tanstack.playground.sst.sh",
+        path: "sites/tanstack-start",
         link: [bucket],
       });
     }

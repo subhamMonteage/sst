@@ -25,6 +25,10 @@ declare module "sst" {
       "type": "sst.aws.React"
       "url": string
     }
+    "MyTanstackSite": {
+      "type": "sst.aws.TanstackStart"
+      "url": string
+    }
     "MyVpc": {
       "type": "sst.aws.Vpc"
     }
