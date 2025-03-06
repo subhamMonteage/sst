@@ -19,6 +19,7 @@ export * from "./email.js";
 export * from "./function.js";
 export * from "./kinesis-stream.js";
 export * from "./nextjs.js";
+export * from "./open-control.js";
 export * from "./postgres.js";
 export * from "./queue.js";
 export * from "./realtime.js";
