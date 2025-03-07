@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -24,6 +25,7 @@ import (
 	"github.com/sst/sst/v3/pkg/flag"
 	"github.com/sst/sst/v3/pkg/process"
 	"github.com/sst/sst/v3/pkg/project"
+	"github.com/sst/sst/v3/pkg/project/path"
 	"github.com/sst/sst/v3/pkg/runtime"
 	"github.com/sst/sst/v3/pkg/server"
 	"golang.org/x/sync/errgroup"
@@ -69,6 +71,17 @@ func CmdMosaic(c *cli.Cli) error {
 		env := map[string]string{}
 		processExited := make(chan bool)
 		timeout := time.Minute * 50
+
+		output := []io.Writer{}
+		if os.Getenv("SST_CHILD") != "" {
+			slog.Info("creating log file for child process")
+			stdout, err := os.Create(filepath.Join(path.ResolveLogDir(cfgPath), os.Getenv("SST_CHILD")+".log"))
+			if err != nil {
+				return err
+			}
+			defer stdout.Close()
+			output = append(output, stdout)
+		}
 		for {
 			select {
 			case <-c.Context.Done():
@@ -109,12 +122,13 @@ func CmdMosaic(c *cli.Cli) error {
 						args[1:]...,
 					)
 					cmd.Env = os.Environ()
+					cmd.Env = append(cmd.Env, "FORCE_COLOR=1")
 					for k, v := range nextEnv {
 						cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
 					}
 					cmd.Stdin = os.Stdin
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
+					cmd.Stdout = io.MultiWriter(append(output, os.Stdout)...)
+					cmd.Stderr = io.MultiWriter(append(output, os.Stderr)...)
 					cmd.Start()
 					go func() {
 						cmd.Wait()
@@ -217,7 +231,6 @@ func CmdMosaic(c *cli.Cli) error {
 		)
 		multi.AddProcess("deploy", []string{currentExecutable, "ui", "--filter=sst"}, "⑆", "SST", "", false, true, append(multiEnv, "SST_LOG="+p.PathLog("ui-deploy"))...)
 		multi.AddProcess("function", []string{currentExecutable, "ui", "--filter=function"}, "λ", "Functions", "", false, true, append(multiEnv, "SST_LOG="+p.PathLog("ui-function"))...)
-		// multi.AddProcess("task", []string{currentExecutable, "ui", "--filter=task"}, "λ", "Tasks", "", false, true, append(multiEnv, "SST_LOG="+p.PathLog("ui-task"))...)
 		wg.Go(func() error {
 			defer c.Cancel()
 			multi.Start()
