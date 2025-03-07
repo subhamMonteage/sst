@@ -5,6 +5,11 @@
 
 declare module "sst" {
   export interface Resource {
+    "MyApp": {
+      "name": string
+      "type": "sst.aws.Function"
+      "url": string
+    }
     "MyAstro4Site": {
       "type": "sst.aws.Astro"
       "url": string
@@ -23,6 +28,14 @@ declare module "sst" {
     }
     "MyReactRouter7Site": {
       "type": "sst.aws.React"
+      "url": string
+    }
+    "MyRouter": {
+      "type": "sst.aws.Router"
+      "url": string
+    }
+    "MyRouter2": {
+      "type": "sst.aws.Router"
       "url": string
     }
     "MyTanstackSite": {

@@ -14,6 +14,7 @@ export default $config({
     const vpc = addVpc();
     const bucket = addBucket();
     const auth = addAuth();
+    const oc = addOpenControl();
     addAstro4Site();
     addAstro5Site();
     addReactRouter7Site();
@@ -24,7 +25,7 @@ export default $config({
     //const apiv1 = addApiV1();
     //const apiv2 = addApiV2();
     //const apiws = addApiWebsocket();
-    //const router = addRouter();
+    const router = addRouter();
     //const app = addFunction();
     //const cluster = addCluster();
     //const service = addService();
@@ -85,6 +86,23 @@ export default $config({
         authorizer: "functions/auth/index.handler",
       });
       return auth;
+    }
+
+    function addOpenControl() {
+      const oc = new sst.aws.OpenControl("MyOpenControl", {
+        server: {
+          handler: "functions/open-control/index.handler",
+          link: [bucket],
+          transform: {
+            role: (args) => {
+              args.managedPolicyArns = $output(args.managedPolicyArns).apply(
+                (v) => [...(v ?? []), "arn:aws:iam::aws:policy/ReadOnlyAccess"]
+              );
+            },
+          },
+        },
+      });
+      return oc;
     }
 
     function addQueue() {
