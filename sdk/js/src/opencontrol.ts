@@ -1,6 +1,6 @@
 import { tool } from "opencontrol/tool";
-import { client } from "../aws/client.js";
-import { Resource } from "../resource.js";
+import { client } from "./aws/client.js";
+import { Resource } from "./resource.js";
 
 /**
  * Creates an OpenControl tool that lists the resources in the current SST app. You can add
