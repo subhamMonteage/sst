@@ -2177,6 +2177,7 @@ async function buildComponents() {
       "../platform/src/components/aws/queue-lambda-subscriber.ts",
       "../platform/src/components/aws/kinesis-stream.ts",
       "../platform/src/components/aws/kinesis-stream-lambda-subscriber.ts",
+      "../platform/src/components/aws/open-control.ts",
       "../platform/src/components/aws/router.ts",
       "../platform/src/components/aws/service.ts",
       "../platform/src/components/aws/sns-topic.ts",

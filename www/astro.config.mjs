@@ -106,6 +106,7 @@ const sidebar = [
           "docs/component/aws/svelte-kit",
           "docs/component/aws/static-site",
           "docs/component/aws/solid-start",
+          "docs/component/aws/open-control",
           "docs/component/aws/tanstack-start",
           "docs/component/aws/kinesis-stream",
           "docs/component/aws/apigatewayv1",
