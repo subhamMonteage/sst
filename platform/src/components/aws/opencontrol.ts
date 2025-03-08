@@ -135,6 +135,7 @@ export class OpenControl extends Component {
           environment: {
             OPENCONTROL_KEY: key,
           },
+          policies: ["arn:aws:iam::aws:policy/ReadOnlyAccess"],
           url: true,
           _skipHint: true,
         },

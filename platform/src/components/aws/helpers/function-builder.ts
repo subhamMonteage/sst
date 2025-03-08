@@ -20,7 +20,13 @@ export function functionBuilder(
   definition: Input<string | FunctionArn | FunctionArgs>,
   defaultArgs: Pick<
     FunctionArgs,
-    "description" | "link" | "environment" | "permissions" | "url" | "_skipHint"
+    | "description"
+    | "link"
+    | "environment"
+    | "permissions"
+    | "policies"
+    | "url"
+    | "_skipHint"
   >,
   argsTransform?: Transform<FunctionArgs>,
   opts?: ComponentResourceOptions,
@@ -88,6 +94,12 @@ export function functionBuilder(
               ...(defaultPermissions ?? []),
               ...(permissions ?? []),
             ]),
+            policies: all([defaultArgs?.policies, definition.policies]).apply(
+              ([defaultPolicies, policies]) => [
+                ...(defaultPolicies ?? []),
+                ...(policies ?? []),
+              ],
+            ),
           },
           opts || {},
         ),

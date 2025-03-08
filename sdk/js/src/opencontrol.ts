@@ -3,9 +3,12 @@ import { client } from "./aws/client.js";
 import { Resource } from "./resource.js";
 
 /**
- * Creates an OpenControl tool that lists the resources in the current SST app. You can add
- * this tool to your OpenControl app by passing it to the `tools` option when creating an
- * OpenControl app.
+ * A list of OpenControl tools provided by SST. Currently, there are two tools:
+ * - A tool that lists the resources in your SST app.
+ * - A tool that can access the resources in your AWS account.
+ *
+ * You can add this tool to your OpenControl app by passing it to the `tools` option when
+ * creating an OpenControl app.
  *
  * @example
  * ```js title="src/app.ts"

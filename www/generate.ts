@@ -481,7 +481,7 @@ async function generateGlobalConfigDoc(
       renderImports(outputFilePath),
       renderBodyBegin(),
       renderAbout(useModuleComment(module)),
-      renderVariables(module),
+      renderVariables(module, { title: "Variables" }),
       renderFunctions(module, useModuleFunctions(module), {
         title: "Functions",
       }),
@@ -639,14 +639,17 @@ async function generateComponentDoc(
         const lines = [
           ...renderLinks(component),
           ...renderCloudflareBindings(component),
-          ...(sdk?.name === "realtime" || sdk?.name === "task"
-            ? renderAbout(useModuleComment(sdk))
+          ...(["realtime", "task"].includes(sdk?.name!)
+            ? renderAbout(useModuleComment(sdk!))
+            : []),
+          ...(["opencontrol"].includes(sdk?.name!)
+            ? renderVariables(sdk!)
             : []),
           ...(sdk
             ? renderFunctions(
                 sdk,
                 useModuleFunctions(sdk),
-                sdk.name === "realtime" || sdk.name === "task"
+                ["realtime", "task"].includes(sdk.name)
                   ? { prefix: sdk.name }
                   : undefined
               )
@@ -769,6 +772,9 @@ function renderType(
     }
     if (type.type === "reference" && type.package === "esbuild") {
       return renderEsbuildType(type);
+    }
+    if (type.type === "reference" && type.package === "opencontrol") {
+      return renderOpencontrolType(type);
     }
     if (
       // when bun is installed globally, package is `bun-types`
@@ -1167,6 +1173,9 @@ function renderType(
     const hash = type.name === "Loader" ? `#loader` : "#build";
     return `[<code class="type">${type.name}</code>](https://esbuild.github.io/api/${hash})`;
   }
+  function renderOpencontrolType(type: TypeDoc.ReferenceType) {
+    return `[<code class="type">${type.name}</code>](https://opencontrol.js.org/docs/api/opencontrol)`;
+  }
   function renderBunShellType(type: TypeDoc.ReferenceType) {
     return `[<code class="type">Bun Shell</code>](https://bun.sh/docs/runtime/shell)`;
   }
@@ -1187,7 +1196,11 @@ function renderType(
   }
 }
 
-function renderVariables(module: TypeDoc.DeclarationReflection) {
+function renderVariables(
+  module: TypeDoc.DeclarationReflection,
+
+  opts?: { title?: string }
+) {
   const lines: string[] = [];
   const vars = (module.children ?? []).filter(
     (c) =>
@@ -1212,7 +1225,7 @@ function renderVariables(module: TypeDoc.DeclarationReflection) {
     };
   }
 
-  lines.push(``, `## Variables`);
+  if (opts?.title) lines.push(``, `## ${opts.title}`);
 
   for (const v of vars) {
     console.debug(` - variable ${v.name}`);
@@ -2177,7 +2190,7 @@ async function buildComponents() {
       "../platform/src/components/aws/queue-lambda-subscriber.ts",
       "../platform/src/components/aws/kinesis-stream.ts",
       "../platform/src/components/aws/kinesis-stream-lambda-subscriber.ts",
-      "../platform/src/components/aws/open-control.ts",
+      "../platform/src/components/aws/opencontrol.ts",
       "../platform/src/components/aws/router.ts",
       "../platform/src/components/aws/service.ts",
       "../platform/src/components/aws/sns-topic.ts",
@@ -2228,6 +2241,7 @@ async function buildSdk() {
       "../sdk/js/src/aws/realtime.ts",
       "../sdk/js/src/aws/task.ts",
       "../sdk/js/src/vector/index.ts",
+      "../sdk/js/src/opencontrol.ts",
     ],
     tsconfig: "../sdk/js/tsconfig.json",
   });
