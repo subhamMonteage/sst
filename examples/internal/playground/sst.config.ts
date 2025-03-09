@@ -93,13 +93,7 @@ export default $config({
         server: {
           handler: "functions/open-control/index.handler",
           link: [bucket],
-          transform: {
-            role: (args) => {
-              args.managedPolicyArns = $output(args.managedPolicyArns).apply(
-                (v) => [...(v ?? []), "arn:aws:iam::aws:policy/ReadOnlyAccess"]
-              );
-            },
-          },
+          policies: ["arn:aws:iam::aws:policy/ReadOnlyAccess"],
         },
       });
       return oc;
