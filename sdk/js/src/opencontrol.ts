@@ -1,11 +1,13 @@
 import { tool } from "opencontrol/tool";
 import { client } from "./aws/client.js";
 import { Resource } from "./resource.js";
+import { z } from "zod";
+import AWS from "aws-sdk";
 
 /**
- * A list of OpenControl tools provided by SST. Currently, there are two tools:
- * - A tool that lists the resources in your SST app.
- * - A tool that can access the resources in your AWS account.
+ * A list of OpenControl tools provided by SST. Currently, it includes tools that can
+ * - Lists the resources in your SST app.
+ * - Access the resources in your AWS account.
  *
  * You can add this tool to your OpenControl app by passing it to the `tools` option when
  * creating an OpenControl app.
@@ -29,16 +31,15 @@ export const tools = [
       const c = await client();
       const stateBucket = await getStateBucket();
       if (!stateBucket)
-        return {
-          error:
-            "Failed to find the SST state bucket in user's AWS account. Ask the user to make sure the AWS account has been bootstrapped with SST.",
-        };
+        throw new Error(
+          "Failed to find the SST state bucket in user's AWS account. Ask the user to make sure the AWS account has been bootstrapped with SST."
+        );
 
       const state = await getStateFile();
       if (!state)
-        return {
-          error: "Failed to find the SST state file in user's AWS account.",
-        };
+        throw new Error(
+          "Failed to find the SST state file in user's AWS account."
+        );
 
       const resources = state["checkpoint"]["latest"]["resources"];
       return resources
@@ -85,6 +86,49 @@ export const tools = [
         if (!res.ok) return;
         return (await res.json()) as any;
       }
+    },
+  }),
+  tool({
+    name: "aws",
+    description: "Make a call to the AWS SDK for JavaScript v2",
+    args: z.object({
+      client: z.string().describe("Class name of the client to use"),
+      command: z.string().describe("Command to call on the client"),
+      args: z
+        .record(z.string(), z.any())
+        .optional()
+        .describe("Arguments to pass to the command"),
+    }),
+    async run(input) {
+      // @ts-ignore
+      const client = new AWS[input.client]();
+      return await client[input.command](input.args).promise();
+    },
+  }),
+  tool({
+    name: "aws_batch",
+    description:
+      "Make multiple calls to the AWS SDK for JavaScript v2 with the same command but different arguments. This tools takes an array of arguments, and will call the command with each argument in the array in parallel. Use this over the aws tool when you need to call the same command multiple times with different arguments.",
+    args: z.object({
+      client: z.string().describe("Class name of the client to use"),
+      command: z.string().describe("Command to call on the client"),
+      args: z
+        .array(
+          z
+            .record(z.string(), z.any())
+            .optional()
+            .describe("Arguments to pass to the command")
+        )
+        .describe(
+          "An array of arguments. Each argument will be passed to the command in parallel."
+        ),
+    }),
+    async run(input) {
+      // @ts-ignore
+      const client = new AWS[input.client]();
+      return await Promise.all(
+        input.args.map((arg: any) => client[input.command](arg).promise())
+      );
     },
   }),
 ];
