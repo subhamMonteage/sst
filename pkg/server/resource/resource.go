@@ -60,6 +60,7 @@ func Register(ctx context.Context, p *project.Project, r *rpc.Server) error {
 	r.RegisterName("Resource.Aws.DistributionDeploymentWaiter", &DistributionDeploymentWaiter{awsResource})
 	r.RegisterName("Resource.Aws.DistributionInvalidation", &DistributionInvalidation{awsResource})
 	r.RegisterName("Resource.Aws.FunctionCodeUpdater", &FunctionCodeUpdater{awsResource})
+	r.RegisterName("Resource.Aws.FunctionEnvironmentUpdate", &FunctionEnvironmentUpdate{awsResource})
 	r.RegisterName("Resource.Aws.HostedZoneLookup", &HostedZoneLookup{awsResource})
 	r.RegisterName("Resource.Aws.KvKeys", &KvKeys{awsResource})
 	r.RegisterName("Resource.Aws.OriginAccessIdentity", &OriginAccessIdentity{awsResource})

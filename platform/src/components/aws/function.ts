@@ -42,6 +42,7 @@ import { parseRoleArn } from "./helpers/arn.js";
 import { RandomBytes } from "@pulumi/random";
 import { lazy } from "../../util/lazy.js";
 import { Efs } from "./efs.js";
+import { FunctionEnvironmentUpdate } from "./providers/function-environment-update.js";
 
 /**
  * Helper type to define function ARN type
@@ -81,6 +82,8 @@ export type FunctionPermissionArgs = {
    */
   resources: Input<string>[];
 };
+
+export type FunctionEnvironmentArgs = Record<string, Input<string>>;
 
 interface FunctionUrlCorsArgs {
   /**
@@ -1325,6 +1328,7 @@ export interface FunctionArgs {
  * Or override it entirely by passing in your own function `bundle`.
  */
 export class Function extends Component implements Link.Linkable {
+  private constructorName: string;
   private function: Output<lambda.Function>;
   private role: iam.Role;
   private logGroup: Output<cloudwatch.LogGroup | undefined>;
@@ -1348,6 +1352,7 @@ export class Function extends Component implements Link.Linkable {
     opts?: ComponentResourceOptions,
   ) {
     super(__pulumiType, name, args, opts);
+    this.constructorName = name;
 
     const parent = this;
     const dev = normalizeDev();
@@ -2292,6 +2297,40 @@ export class Function extends Component implements Link.Linkable {
    */
   public get arn() {
     return this.function.arn;
+  }
+
+  /**
+   * Add environment variables lazily to the function after the function is created.
+   *
+   * This is useful for adding environment variables that are only available after the
+   * function is created, like the function URL.
+   *
+   * @param environment The environment variables to add to the function.
+   *
+   * @example
+   * Add the function URL as an environment variable.
+   *
+   * ```ts title="sst.config.ts"
+   * const fn = new sst.aws.Function("MyFunction", {
+   *   handler: "src/handler.handler",
+   *   url: true,
+   * });
+   *
+   * fn.addEnvironment({
+   *   URL: fn.url,
+   * });
+   * ```
+   */
+  public addEnvironment(environment: FunctionEnvironmentArgs) {
+    return new FunctionEnvironmentUpdate(
+      `${this.constructorName}EnvironmentUpdate`,
+      {
+        functionName: this.name,
+        environment,
+        region: getRegionOutput(undefined, { parent: this }).name,
+      },
+      { parent: this },
+    );
   }
 
   /** @internal */
