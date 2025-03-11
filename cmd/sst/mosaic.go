@@ -73,7 +73,7 @@ func CmdMosaic(c *cli.Cli) error {
 		timeout := time.Minute * 50
 
 		output := []io.Writer{}
-		if os.Getenv("SST_CHILD") != "" {
+		if os.Getenv("SST_CHILD") != "" && flag.SST_LOG_CHILDREN {
 			slog.Info("creating log file for child process")
 			stdout, err := os.Create(filepath.Join(path.ResolveLogDir(cfgPath), os.Getenv("SST_CHILD")+".log"))
 			if err != nil {
