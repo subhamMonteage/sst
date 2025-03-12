@@ -1174,6 +1174,10 @@ export interface FunctionArgs {
          */
         subnets?: Input<Input<string>[]>;
       }>;
+
+  hook?: {
+    postbuild(dir: string): Promise<void>;
+  };
   /**
    * [Transform](/docs/components#transform) how this component creates its underlying
    * resources.
@@ -1665,8 +1669,10 @@ export class Function extends Component implements Link.Linkable {
             if (result.errors.length > 0) {
               throw new Error(result.errors.join("\n"));
             }
+            if (args.hook?.postbuild) await args.hook.postbuild(result.out);
             return result;
           });
+
           return {
             handler: buildResult.handler,
             bundle: buildResult.out,
