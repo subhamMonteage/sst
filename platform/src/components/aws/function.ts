@@ -283,8 +283,8 @@ export interface FunctionArgs {
    * Currently supports Node.js and Golang functions.
    * :::
    *
-   * Currently supports **Node.js** and **Golang** functions. Python is community supported
-   * and is currently a work in progress. Other runtimes are on the roadmap.
+   * Currently supports **Node.js**, and **Golang** functions. Python and Rust are community
+   * supported and currently are a work in progress. Other runtimes are on the roadmap.
    *
    * @default `"nodejs20.x"`
    *
@@ -300,6 +300,7 @@ export interface FunctionArgs {
     | "nodejs20.x"
     | "nodejs22.x"
     | "go"
+    | "rust"
     | "provided.al2023"
     | "python3.9"
     | "python3.10"
@@ -334,6 +335,7 @@ export interface FunctionArgs {
    *
    * - For Node.js this is in the format `{path}/{file}.{method}`.
    * - For Golang this is `{path}` to the Go module.
+   * - For Rust this is `{path}` to the Rust crate.
    *
    * @example
    *
@@ -373,6 +375,17 @@ export interface FunctionArgs {
    * includes the name of the module in your `go.mod`. So in this case your `go.mod`
    * might be in `packages/functions/go` and `some_module` is the name of the
    * module.
+   *
+   * For Rust, it might look like this.
+   *
+   * ```js
+   * {
+   *   handler: "crates/api"
+   * }
+   * ```
+   *
+   * Where `crates/api` is the path to the Rust crate. This means there is a
+   * `Cargo.toml` file in `crates/api`, and the main() function handles the lambda.
    */
   handler: Input<string>;
   /**
@@ -1212,8 +1225,8 @@ export interface FunctionArgs {
  *
  * #### Supported runtimes
  *
- * Currently supports **Node.js** and **Golang** functions. Python is community supported and is
- * currently a work in progress. Other runtimes are on the roadmap.
+ * Currently supports **Node.js** and **Golang** functions. Python and Rust are community 
+ * supported and are currently a work in progress. Other runtimes are on the roadmap.
  *
  * @example
  *
@@ -1237,6 +1250,16 @@ export interface FunctionArgs {
  *   new sst.aws.Function("MyFunction", {
  *     runtime: "go",
  *     handler: "./src"
+ *   });
+ *   ```
+ *   </TabItem>
+ *   <TabItem label="Rust">
+ *   Pass in the directory where your Cargo.toml lives.
+ *
+ *   ```ts title="sst.config.ts"
+ *   new sst.aws.Function("MyFunction", {
+ *     runtime: "runtime",
+ *     handler: "./crates/api/"
  *   });
  *   ```
  *   </TabItem>
@@ -1286,6 +1309,18 @@ export interface FunctionArgs {
  *   )
  *
  *   resource.Get("MyBucket", "name")
+ *   ```
+ *   </TabItem>
+ *   <TabItem label="Rust">
+ *   ```rust title="src/main.rs"
+ *   use sst_sdk::Resource;
+ *   #[derive(serde::Deserialize, Debug)]
+ *   struct Bucket {
+ *      name: String,
+ *   }
+ *
+ *   let resource = Resource::init().unwrap();
+ *   let Bucket { name } = resource.get("Bucket").unwrap();
  *   ```
  *   </TabItem>
  * </Tabs>
@@ -2183,7 +2218,7 @@ export class Function extends Component implements Link.Linkable {
                     s3Key: zipAsset!.key,
                     handler: unsecret(handler),
                     runtime: runtime.apply((v) =>
-                      v === "go" ? "provided.al2023" : v,
+                      v === "go" || v === "rust" ? "provided.al2023" : v,
                     ),
                   }),
             },
