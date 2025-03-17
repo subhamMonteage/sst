@@ -149,9 +149,10 @@ export interface ReactArgs extends SsrSiteArgs {
    */
   invalidation?: SsrSiteArgs["invalidation"];
   /**
-   * Set [environment variables](https://vitejs.dev/guide/env-and-mode) in your React app. These are made available:
+   * Set environment variables in your React app with
+   * [Vite](https://vitejs.dev/guide/env-and-mode). These are made available:
    *
-   * 1. In `react-router build`, they are loaded into `process.env`.
+   * 1. In `react-router build`, by loading them into `process.env`.
    * 2. Locally while running `react-router dev` through `sst dev`.
    *
    * :::tip
@@ -277,7 +278,9 @@ export interface ReactArgs extends SsrSiteArgs {
 }
 
 /**
- * The `React` component lets you deploy a React app built with [React Router](https://reactrouter.com/) app to AWS.
+ * The `React` component lets you deploy a React app built with
+ * [React Router v7](https://reactrouter.com/) to AWS. It supports SPA mode, SSR
+ * mode, and prerendered routes.
  *
  * @example
  *
@@ -442,17 +445,17 @@ export class React extends Component implements Link.Linkable {
           errorResponses: buildMeta.serverPath
             ? []
             : [
-                {
-                  errorCode: 403,
-                  responsePagePath: interpolate`/${indexPage}`,
-                  responseCode: 200,
-                },
-                {
-                  errorCode: 404,
-                  responsePagePath: interpolate`/${indexPage}`,
-                  responseCode: 200,
-                },
-              ],
+              {
+                errorCode: 403,
+                responsePagePath: interpolate`/${indexPage}`,
+                responseCode: 200,
+              },
+              {
+                errorCode: 404,
+                responsePagePath: interpolate`/${indexPage}`,
+                responseCode: 200,
+              },
+            ],
         });
       });
     }
