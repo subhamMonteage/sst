@@ -149,7 +149,7 @@ export interface ReactArgs extends SsrSiteArgs {
    */
   invalidation?: SsrSiteArgs["invalidation"];
   /**
-   * Set environment variables in your React app with
+   * Set environment variables in your React app through
    * [Vite](https://vitejs.dev/guide/env-and-mode). These are made available:
    *
    * 1. In `react-router build`, by loading them into `process.env`.

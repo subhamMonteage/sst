@@ -21,10 +21,10 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    * Configure how this component works in `sst dev`.
    *
    * :::note
-   * In `sst dev` your TanstackStart app is run in dev mode; it's not deployed.
+   * In `sst dev` your Tanstack Start app is run in dev mode; it's not deployed.
    * :::
    *
-   * Instead of deploying your TanstackStart app, this starts it in dev mode. It's run
+   * Instead of deploying your TanStack Start app, this starts it in dev mode. It's run
    * as a separate process in the `sst dev` multiplexer. Read more about
    * [`sst dev`](/docs/reference/cli/#dev).
    *
@@ -32,7 +32,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    */
   dev?: SsrSiteArgs["dev"];
   /**
-   * Permissions and the resources that the [server function](#nodes-server) in your TanstackStart app needs to access. These permissions are used to create the function's IAM role.
+   * Permissions and the resources that the [server function](#nodes-server) in your TanStack Start app needs to access. These permissions are used to create the function's IAM role.
    *
    * :::tip
    * If you `link` the function to a resource, the permissions to access it are
@@ -80,7 +80,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    */
   permissions?: SsrSiteArgs["permissions"];
   /**
-   * The regions that the [server function](#nodes-server) in your TanstackStart app will be deployed to. Requests will be routed to the nearest region based on the user's location.
+   * The regions that the [server function](#nodes-server) in your TanStack Start app will be deployed to. Requests will be routed to the nearest region based on the user's location.
    *
    * @default The default region of the SST app
    * @example
@@ -92,14 +92,14 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    */
   regions?: SsrSiteArgs["regions"];
   /**
-   * Path to the directory where your TanstackStart app is located.  This path is relative to your `sst.config.ts`.
+   * Path to the directory where your TanStack Start app is located.  This path is relative to your `sst.config.ts`.
    *
-   * By default it assumes your TanstackStart app is in the root of your SST app.
+   * By default it assumes your TanStack Start app is in the root of your SST app.
    * @default `"."`
    *
    * @example
    *
-   * If your TanstackStart app is in a package in your monorepo.
+   * If your TanStack Start app is in a package in your monorepo.
    *
    * ```js
    * {
@@ -109,7 +109,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    */
   path?: SsrSiteArgs["path"];
   /**
-   * [Link resources](/docs/linking/) to your TanstackStart app. This will:
+   * [Link resources](/docs/linking/) to your TanStack Start app. This will:
    *
    * 1. Grant the permissions needed to access the resources.
    * 2. Allow you to access it in your site using the [SDK](/docs/reference/sdk/).
@@ -126,7 +126,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    */
   link?: SsrSiteArgs["link"];
   /**
-   * Configure how the CloudFront cache invalidations are handled. This is run after your TanstackStart app has been deployed.
+   * Configure how the CloudFront cache invalidations are handled. This is run after your TanStack Start app has been deployed.
    * :::tip
    * You get 1000 free invalidations per month. After that you pay $0.005 per invalidation path. [Read more here](https://aws.amazon.com/cloudfront/pricing/).
    * :::
@@ -144,13 +144,14 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    */
   invalidation?: SsrSiteArgs["invalidation"];
   /**
-   * Set in your TanstackStart app. These are made available:
+   * Set environment variables in your TanStack Start app through
+   * [Vite](https://vitejs.dev/guide/env-and-mode). These are made available:
    *
    * 1. In `vinxi build`, they are loaded into `process.env`.
    * 2. Locally while running `sst dev vinxi dev`.
    *
    * :::tip
-   * You can also `link` resources to your TanstackStart app and access them in a type-safe way with the [SDK](/docs/reference/sdk/). We recommend linking since it's more secure.
+   * You can also `link` resources to your TanStack Start app and access them in a type-safe way with the [SDK](/docs/reference/sdk/). We recommend linking since it's more secure.
    * :::
    *
    * @example
@@ -165,7 +166,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    */
   environment?: SsrSiteArgs["environment"];
   /**
-   * Set a custom domain for your TanstackStart app.
+   * Set a custom domain for your TanStack Start app.
    *
    * Automatically manages domains hosted on AWS Route 53, Cloudflare, and Vercel. For other
    * providers, you'll need to pass in a `cert` that validates domain ownership and add the
@@ -210,7 +211,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    */
   domain?: SsrSiteArgs["domain"];
   /**
-   * The command used internally to build your TanstackStart app.
+   * The command used internally to build your TanStack Start app.
    *
    * @default `"npm run build"`
    *
@@ -225,7 +226,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    */
   buildCommand?: SsrSiteArgs["buildCommand"];
   /**
-   * Configure how the TanstackStart app assets are uploaded to S3.
+   * Configure how the TanStack Start app assets are uploaded to S3.
    *
    * By default, this is set to the following. Read more about these options below.
    * ```js
@@ -240,7 +241,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    */
   assets?: SsrSiteArgs["assets"];
   /**
-   * Configure the [server function](#nodes-server) in your TanstackStart app to connect
+   * Configure the [server function](#nodes-server) in your TanStack Start app to connect
    * to private subnets in a virtual private cloud or VPC. This allows your app to
    * access private resources.
    *
@@ -256,7 +257,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
    */
   vpc?: SsrSiteArgs["vpc"];
   /**
-   * Configure the TanstackStart app to use an existing CloudFront cache policy.
+   * Configure the TanStack Start app to use an existing CloudFront cache policy.
    *
    * :::note
    * CloudFront has a limit of 20 cache policies per account, though you can request a limit
@@ -278,13 +279,13 @@ export interface TanstackStartArgs extends SsrSiteArgs {
 }
 
 /**
- * The `TanstackStart` component lets you deploy a [TanstackStart](https://tanstack.com/start/latest) app to AWS.
+ * The `TanstackStart` component lets you deploy a [TanStack Start](https://tanstack.com/start/latest) app to AWS.
  *
  * @example
  *
  * #### Minimal example
  *
- * Deploy a TanstackStart app that's in the project root.
+ * Deploy a TanStack Start app that's in the project root.
  *
  * ```js title="sst.config.ts"
  * new sst.aws.TanstackStart("MyWeb");
@@ -292,7 +293,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
  *
  * #### Change the path
  *
- * Deploys the TanstackStart app in the `my-app/` directory.
+ * Deploys the TanStack Start app in the `my-app/` directory.
  *
  * ```js {2} title="sst.config.ts"
  * new sst.aws.TanstackStart("MyWeb", {
@@ -302,7 +303,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
  *
  * #### Add a custom domain
  *
- * Set a custom domain for your TanstackStart app.
+ * Set a custom domain for your TanStack Start app.
  *
  * ```js {2} title="sst.config.ts"
  * new sst.aws.TanstackStart("MyWeb", {
@@ -325,7 +326,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
  *
  * #### Link resources
  *
- * [Link resources](/docs/linking/) to your TanstackStart app. This will grant permissions
+ * [Link resources](/docs/linking/) to your TanStack Start app. This will grant permissions
  * to the resources and allow you to access it in your app.
  *
  * ```ts {4} title="sst.config.ts"
@@ -337,7 +338,7 @@ export interface TanstackStartArgs extends SsrSiteArgs {
  * ```
  *
  * You can use the [SDK](/docs/reference/sdk/) to access the linked resources
- * in your TanstackStart app.
+ * in your TanStack Start app.
  *
  * ```ts title="src/app.tsx"
  * import { Resource } from "sst";
@@ -444,7 +445,7 @@ export class TanstackStart extends Component implements Link.Linkable {
   }
 
   /**
-   * The URL of the TanstackStart app.
+   * The URL of the TanStack Start app.
    *
    * If the `domain` is set, this is the URL with the custom domain.
    * Otherwise, it's the autogenerated CloudFront URL.
