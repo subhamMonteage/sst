@@ -59,7 +59,11 @@ export default function Chat(
 
           const input = (e.target as HTMLFormElement).message;
 
-          connection!.publish(topic, JSON.stringify({ message: input.value }), { qos: 1 });
+          connection!.publish(
+            topic,
+            JSON.stringify({ message: input.value }),
+            { qos: 1 }
+          );
           input.value = "";
         }}
       >
