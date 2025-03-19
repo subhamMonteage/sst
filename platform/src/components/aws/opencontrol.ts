@@ -65,7 +65,7 @@ export interface OpenControlArgs {
  * });
  * ```
  *
- * #### Link your LLM keys 
+ * #### Link your AI API keys 
  *
  * ```ts title="sst.config.ts" {6}
  * const anthropicKey = new sst.Secret("AnthropicKey");
@@ -108,6 +108,7 @@ export interface OpenControlArgs {
  *       : ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
  *   }
  * });
+ * ```
  *
  * Here we are giving it admin access in dev but read-only access in prod.
  *
