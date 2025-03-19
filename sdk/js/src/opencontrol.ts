@@ -5,21 +5,23 @@ import { z } from "zod";
 import AWS from "aws-sdk";
 
 /**
- * A list of OpenControl tools provided by SST. Currently, it includes tools that can
+ * A list of OpenControl tools provided by SST. Currently, it includes tools that
+ * can:
+ *
  * - Lists the resources in your SST app.
  * - Access the resources in your AWS account.
  *
- * You can add this tool to your OpenControl app by passing it to the `tools` option when
- * creating an OpenControl app.
+ * You can add this tool to your OpenControl server by passing it to the `tools`
+ * option when creating it.
  *
  * @example
- * ```js title="src/app.ts"
+ * ```js title="src/server.ts"
  * import { create } from "opencontrol";
  * import { tools } from "sst/opencontrol";
  *
  * const app = create({
- *   key: process.env.OPENCONTROL_KEY,
- *   tools: [...tools],
+ *   model: // ...
+ *   tools: [...tools]
  * });
  * ```
  */

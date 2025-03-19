@@ -513,14 +513,14 @@ export interface FunctionArgs {
    */
   permissions?: Input<Prettify<FunctionPermissionArgs>[]>;
   /**
-   * Policies to attach to the function. These policies will be added to the function's IAM
-   * role.
+   * Policies to attach to the function. These policies will be added to the
+   * function's IAM role.
    *
-   * Attaching policies lets you grant a set of predefined permissions to the function without
-   * having to specify the permissions in the `permissions` prop.
+   * Attaching policies lets you grant a set of predefined permissions to the
+   * function without having to specify the permissions in the `permissions` prop.
    *
    * @example
-   * Allow the function to have read-only access to all resources.
+   * For example, allow the function to have read-only access to all resources.
    * ```js
    * {
    *   policies: ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
