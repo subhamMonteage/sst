@@ -121,17 +121,17 @@ export const tools = [
           z
             .record(z.string(), z.any())
             .optional()
-            .describe("Arguments to pass to the command"),
+            .describe("Arguments to pass to the command")
         )
         .describe(
-          "An array of arguments. Each argument will be passed to the command in parallel.",
+          "An array of arguments. Each argument will be passed to the command in parallel."
         ),
     }),
     async run(input) {
       // @ts-ignore
       const client = new AWS[input.client]();
       return await Promise.all(
-        input.args.map((arg: any) => client[input.command](arg).promise()),
+        input.args.map((arg: any) => client[input.command](arg).promise())
       );
     },
   }),

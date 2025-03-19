@@ -642,9 +642,20 @@ async function generateComponentDoc(
           ...(["realtime", "task"].includes(sdk?.name!)
             ? renderAbout(useModuleComment(sdk!))
             : []),
-          ...(["opencontrol"].includes(sdk?.name!)
-            ? renderVariables(sdk!)
-            : []),
+          ...(() => {
+            if (!["opencontrol"].includes(sdk?.name!)) return [];
+            for (const variable of sdk!.children!) {
+              if (variable.name === "tools") {
+                // @ts-expect-error
+                variable.type = {
+                  type: "reference",
+                  name: "Tools",
+                  package: "opencontrol",
+                };
+              }
+            }
+            return renderVariables(sdk!);
+          })(),
           ...(sdk
             ? renderFunctions(
                 sdk,
@@ -1198,7 +1209,6 @@ function renderType(
 
 function renderVariables(
   module: TypeDoc.DeclarationReflection,
-
   opts?: { title?: string }
 ) {
   const lines: string[] = [];
