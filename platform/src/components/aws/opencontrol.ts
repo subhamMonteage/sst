@@ -152,9 +152,14 @@ export class OpenControl extends Component {
    * The URL of the OpenControl server.
    */
   public get url() {
-    return all([this._server.url, this._key]).apply(
-      ([url, key]) => `${url}${key}`,
-    );
+    return this._server.url;
+  }
+
+  /**
+   * The password for the OpenControl server.
+   */
+  public get password() {
+    return this._key;
   }
 
   /**
