@@ -939,6 +939,9 @@ function renderType(
         '<code class="primitive">"arn:aws:lambda:$&#123;string&#125;"</code>',
       ].join("");
     }
+    if (type.name === "SsrSite") {
+      return ['<code class="primitive">All SSR sites</code>'].join("");
+    }
     // types in the same doc (links to the class ie. `subscribe()` return type)
     if (isModuleComponent(module) && type.name === useClassName(module)) {
       return `[<code class="type">${type.name}</code>](.)`;
@@ -993,6 +996,7 @@ function renderType(
       SnsTopic: "sns-topic",
       SnsTopicLambdaSubscriber: "sns-topic-lambda-subscriber",
       SnsTopicQueueSubscriber: "sns-topic-queue-subscriber",
+      StaticSite: "static-site",
       Task: "task",
       Vpc: "vpc",
     }[type.name];
@@ -1044,7 +1048,11 @@ function renderType(
           `<code class="symbol">&gt;</code>`,
         ].join("");
     }
-    if (type.name === "UnwrappedObject" || type.name === "Unwrap") {
+    if (
+      type.name === "UnwrappedObject" ||
+      type.name === "UnwrappedArray" ||
+      type.name === "Unwrap"
+    ) {
       return renderSomeType(type.typeArguments?.[0]!);
     }
     if (type.name === "ComponentResourceOptions") {
@@ -2197,7 +2205,7 @@ async function buildComponents() {
       "../platform/src/components/aws/solid-start.ts",
       "../platform/src/components/aws/static-site.ts",
       "../platform/src/components/aws/svelte-kit.ts",
-      "../platform/src/components/aws/tanstack-start.ts",
+      "../platform/src/components/aws/tan-stack-start.ts",
       "../platform/src/components/aws/task.ts",
       "../platform/src/components/aws/vpc.ts",
       "../platform/src/components/aws/vpc-v1.ts",

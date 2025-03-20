@@ -15,10 +15,8 @@ export default $config({
     const bucket = addBucket();
     const auth = addAuth();
     const oc = addOpenControl();
-    addAstro4Site();
-    addAstro5Site();
-    addReactRouter7Site();
-    addTanstackSite();
+    addSsrSite();
+    addStaticSite();
     //const queue = addQueue();
     //const efs = addEfs();
     //const email = addEmail();
@@ -217,17 +215,89 @@ export default $config({
     }
 
     function addRouter() {
-      const app = new sst.aws.Function("MyApp", {
+      const app = new sst.aws.Function("MyRouterApp", {
         handler: "functions/router/index.handler",
         url: true,
       });
+      const rr7 = new sst.aws.React("MyRouterSite", {
+        path: "sites/react-router-7-ssr",
+        cdn: false,
+      });
+      const astro5 = new sst.aws.Astro("MyRouterAstroSite", {
+        path: "sites/astro5",
+        cdn: false,
+      });
+      const solid = new sst.aws.SolidStart("MyRouterSolidSite", {
+        path: "sites/solid-start",
+        link: [bucket],
+        cdn: false,
+      });
+      const nuxt = new sst.aws.Nuxt("MyRouterNuxtSite", {
+        path: "sites/nuxt",
+        link: [bucket],
+        cdn: false,
+      });
+      const tanstackStart = new sst.aws.TanStackStart(
+        "MyRouterTanStackStartSite",
+        {
+          path: "sites/tanstack-start",
+          cdn: false,
+        }
+      );
+      const svelte = new sst.aws.SvelteKit("MyRouterSvelteSite", {
+        path: "sites/svelte-kit",
+        link: [bucket],
+        cdn: false,
+      });
+      const analog = new sst.aws.Analog("MyRouterAnalogSite", {
+        path: "sites/analog",
+        link: [bucket],
+        cdn: false,
+      });
+      const remix = new sst.aws.Remix("MyRouterRemixSite", {
+        path: "sites/remix",
+        link: [bucket],
+        cdn: false,
+      });
+      const nextjs = new sst.aws.Nextjs("MyRouterNextSite", {
+        path: "sites/nextjs",
+        link: [bucket],
+        cdn: false,
+      });
+      const vite = new sst.aws.StaticSite("Web", {
+        path: "sites/vite",
+        build: {
+          command: "npm run build",
+          output: "dist",
+        },
+        base: "/vite",
+        cdn: false,
+      });
+
       const router = new sst.aws.Router("MyRouter", {
-        domain: "router.playground.sst.sh",
-        routes: {
-          "/api/*": app.url,
+        domain: {
+          name: "router.playground.sst.sh",
+          aliases: ["*.router.playground.sst.sh"],
         },
       });
-      const router2 = sst.aws.Router.get("MyRouter2", router.distributionID);
+      router.route("api.router.playground.sst.sh/", app.url);
+      router.route("/api", app.url, {
+        rewrite: {
+          regex: "^/api/(.*)$",
+          to: "/$1",
+        },
+      });
+      router.routeSite("/rr7", rr7);
+      router.routeSite("/astro5", astro5);
+      router.routeSite("/solid", solid);
+      router.routeSite("/nuxt", nuxt);
+      router.routeSite("/svelte", svelte);
+      //router.routeSite("/tan", tanstackStart);
+      router.routeSite("/analog", analog);
+      router.routeSite("/remix", remix);
+      router.routeSite("/vite", vite);
+      router.routeSite("/next", nextjs);
+
       return router;
     }
 
@@ -395,38 +465,34 @@ export default $config({
       return bus;
     }
 
-    function addAstro4Site() {
-      new sst.aws.Astro("MyAstro4Site", {
-        domain: "astro4.playground.sst.sh",
-        path: "sites/astro4",
-        regions: ["us-east-1", "us-west-1"],
-        link: [bucket],
-      });
-    }
-
-    function addAstro5Site() {
-      new sst.aws.Astro("MyAstro5Site", {
-        domain: "astro5.playground.sst.sh",
-        path: "sites/astro5",
-        //path: "sites/astro5-static",
-        link: [bucket],
-      });
-    }
-
-    function addReactRouter7Site() {
-      new sst.aws.React("MyReactRouter7Site", {
-        domain: "reactrouter7.playground.sst.sh",
-        path: "sites/react-router-7-ssr",
+    function addSsrSite() {
+      new sst.aws.Astro("MyNextjsSite", {
+        //domain: "ssr.playground.sst.sh",
+        //path: "sites/nextjs",
+        //path: "sites/astro4",
+        //path: "sites/astro5",
+        path: "sites/astro5-static",
+        //path: "sites/react-router-7-ssr",
         //path: "sites/react-router-7-csr",
+        //path: "sites/tanstack-start",
+
+        // multi-region
+        //regions: ["us-east-1", "us-west-1"],
         link: [bucket],
+        //assets: {
+        //  purge: true,
+        //},
       });
     }
 
-    function addTanstackSite() {
-      new sst.aws.TanstackStart("MyTanstackSite", {
-        domain: "tanstack.playground.sst.sh",
-        path: "sites/tanstack-start",
-        link: [bucket],
+    function addStaticSite() {
+      new sst.aws.StaticSite("MyStaticSite", {
+        path: "sites/vite",
+        build: {
+          command: "npm run build",
+          output: "dist",
+        },
+        errorPage: "index.html",
       });
     }
   },

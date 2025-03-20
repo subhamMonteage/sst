@@ -83,8 +83,6 @@ export type FunctionPermissionArgs = {
   resources: Input<string>[];
 };
 
-export type FunctionEnvironmentArgs = Record<string, Input<string>>;
-
 interface FunctionUrlCorsArgs {
   /**
    * Allow cookies or other credentials in requests to the function URL.
@@ -2361,8 +2359,8 @@ export class Function extends Component implements Link.Linkable {
    * });
    * ```
    */
-  public addEnvironment(environment: FunctionEnvironmentArgs) {
-    return new FunctionEnvironmentUpdate(
+  public addEnvironment(environment: Input<Record<string, Input<string>>>) {
+    new FunctionEnvironmentUpdate(
       `${this.constructorName}EnvironmentUpdate`,
       {
         functionName: this.name,

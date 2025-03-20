@@ -30,7 +30,7 @@
         "acorn": "8.11.3",
         "acorn-walk": "8.3.2",
         "archiver": "6.0.1",
-        "astro-sst": "2.40.1",
+        "astro-sst": "3.1.2",
         "aws4fetch": "1.0.18",
         "esbuild": "0.20.2",
         "glob": "10.3.10",
@@ -852,7 +852,7 @@
 
     "astro-expressive-code": ["astro-expressive-code@0.36.1", "", { "dependencies": { "rehype-expressive-code": "^0.36.1" }, "peerDependencies": { "astro": "^4.0.0-beta || ^3.3.0" } }, "sha512-D2nmBQ56wfnS/CBqCWoEGqIivNqaKJoACIK8eNa7TeDUwHzEWNSNoj5yK+wUJzpC7gI9XKPDh0Q/j8Dy7s84vA=="],
 
-    "astro-sst": ["astro-sst@2.40.1", "", { "dependencies": { "@astrojs/webapi": "^3.0.0", "set-cookie-parser": "^2.6.0" } }, "sha512-2L17YA4VQToggtrfVz41aXvNOCwsGihukAx7aal33+mdNYWXlrPgFwplyb2/9Cn4o3UxL9S3LeyCWZ3+MWoIlQ=="],
+    "astro-sst": ["astro-sst@3.1.2", "", { "dependencies": { "set-cookie-parser": "^2.7.1" } }, "sha512-YqHu+yWlYiOwGpO22gwAppCzIQl+LbkVzG1r9O5XdyY3Hg9tyNguGN5R4eErd1/yk/75h1THOCfEzl3f7DEflA=="],
 
     "async": ["async@3.2.6", "", {}, "sha512-htCUDlxyyCLMgaM3xXg0C0LW2xqfuQ6p05pCEIsXuyQ+a1koYKTuBMzRNwmybfLgvJDMd0r1LTn4+E0Ti6C2AA=="],
 

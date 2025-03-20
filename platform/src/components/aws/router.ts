@@ -1,14 +1,27 @@
-import { ComponentResourceOptions, all, output } from "@pulumi/pulumi";
+import {
+  ComponentResourceOptions,
+  Output,
+  all,
+  interpolate,
+  output,
+} from "@pulumi/pulumi";
+import crypto from "crypto";
 import { Component, Transform, transform } from "../component";
 import { Link } from "../link";
 import type { Input } from "../input";
 import { Cdn, CdnArgs } from "./cdn";
-import { cloudfront, types } from "@pulumi/aws";
+import { cloudfront } from "@pulumi/aws";
 import { hashStringToPrettyString, physicalName } from "../naming";
 import { Bucket } from "./bucket";
 import { OriginAccessControl } from "./providers/origin-access-control";
+import { VisibleError } from "../error";
+import { RouterUrlRoute } from "./router-url-route";
+import { RouterBucketRoute } from "./router-bucket-route";
+import { RouterSiteRoute } from "./router-site-route";
+import { SsrSite } from "./ssr-site";
+import { StaticSite } from "./static-site";
 
-export interface RouterUrlRouteArgs extends BaseRouteArgs {
+interface InlineUrlRouteArgs extends InlineBaseRouteArgs {
   /**
    * The destination URL.
    *
@@ -62,7 +75,7 @@ export interface RouterUrlRouteArgs extends BaseRouteArgs {
   }>;
 }
 
-export interface RouterBucketRouteArgs extends BaseRouteArgs {
+interface InlineRouterBucketRouteArgs extends InlineBaseRouteArgs {
   /**
    * A bucket to route to.
    *
@@ -143,7 +156,7 @@ export interface RouterBucketRouteArgs extends BaseRouteArgs {
   }>;
 }
 
-interface BaseRouteArgs {
+interface InlineBaseRouteArgs {
   /**
    * The cache policy to use for the route.
    *
@@ -209,9 +222,7 @@ interface BaseRouteArgs {
        */
       injection: Input<string>;
       /**
-       * The KV stores to associate with the viewer request function.
-       *
-       * Takes a list of CloudFront KeyValueStore ARNs.
+       * The KV store to associate with the viewer request function.
        *
        * @example
        * ```js
@@ -221,13 +232,17 @@ interface BaseRouteArgs {
        *       url: "https://example.com"
        *       edge: {
        *         viewerRequest: {
-       *           kvStores: ["arn:aws:cloudfront::123456789012:key-value-store/my-store"]
+       *           kvStore: "arn:aws:cloudfront::123456789012:key-value-store/my-store"
        *         }
        *       }
        *     }
        *   }
        * }
        * ```
+       */
+      kvStore?: Input<string>;
+      /**
+       * @deprecated Use `kvStore` instead because CloudFront Functions only support one KV store.
        */
       kvStores?: Input<Input<string>[]>;
     }>;
@@ -293,9 +308,7 @@ interface BaseRouteArgs {
        */
       injection: Input<string>;
       /**
-       * The KV stores to associate with the viewer response function.
-       *
-       * Takes a list of CloudFront KeyValueStore ARNs.
+       * The KV store to associate with the viewer response function.
        *
        * @example
        * ```js
@@ -305,7 +318,7 @@ interface BaseRouteArgs {
        *       url: "https://example.com"
        *       edge: {
        *         viewerResponse: {
-       *           kvStores: ["arn:aws:cloudfront::123456789012:key-value-store/my-store"]
+       *           kvStore: "arn:aws:cloudfront::123456789012:key-value-store/my-store"
        *         }
        *       }
        *     }
@@ -313,9 +326,63 @@ interface BaseRouteArgs {
        * }
        * ```
        */
+      kvStore?: Input<string>;
+      /**
+       * @deprecated Use `kvStore` instead because CloudFront Functions only support one KV store.
+       */
       kvStores?: Input<Input<string>[]>;
     }>;
   };
+}
+
+export interface RouteArgs {
+  /**
+   * Rewrite the request path.
+   *
+   * @example
+   *
+   * For URL routes, if the route path is `/api/*` and a request comes in for
+   * `/api/users/profile`, the request path the destination sees is `/api/users/profile`.
+   *
+   * If you want to serve the route from the root, you can rewrite the request path to
+   * `/users/profile`.
+   *
+   * ```js
+   * {
+   *   rewrite: {
+   *     regex: "^/api/(.*)$",
+   *     to: "/$1"
+   *   }
+   * }
+   * ```
+   *
+   * Similarly, for bucket routes, if the route path is `/files/*` and a request comes in
+   * for `/files/logo.png`, the request path the destination sees is `/files/logo.png`.
+   *
+   * If you want to serve the file from the root of the bucket, you can rewrite the request
+   * path to `/logo.png`.
+   *
+   * ```js
+   * {
+   *   rewrite: {
+   *     regex: "^/files/(.*)$",
+   *     to: "/$1"
+   *   }
+   * }
+   * ```
+   *
+   * Rewrite the request path is not supported for site routes.
+   */
+  rewrite?: Input<{
+    /**
+     * The regex to match the request path.
+     */
+    regex: Input<string>;
+    /**
+     * The replacement for the matched path.
+     */
+    to: Input<string>;
+  }>;
 }
 
 export interface RouterArgs {
@@ -365,8 +432,13 @@ export interface RouterArgs {
    */
   domain?: CdnArgs["domain"];
   /**
-   * A map of routes to their destinations. The _key_ is the route path and the
-   * _value_ can be:
+   * A map of routes to their destinations.
+   *
+   * @deprecated Use the `route`, `routeBucket`, and `routeSite` functions instead. These
+   * functions provide a more flexible API for routing to URLs, buckets, and sites. They
+   * also allow routing based on both domain and path patterns.
+   *
+   * The _key_ is the route path and the _value_ can be:
    *
    * - The destination URL as a string
    * - Or, an object with
@@ -472,9 +544,127 @@ export interface RouterArgs {
    * }
    * ```
    */
-  routes: Input<
-    Record<string, Input<string | RouterUrlRouteArgs | RouterBucketRouteArgs>>
+  routes?: Input<
+    Record<
+      string,
+      Input<string | InlineUrlRouteArgs | InlineRouterBucketRouteArgs>
+    >
   >;
+  /**
+   * Configure CloudFront Functions to customize the behavior of HTTP requests and responses at the edge.
+   */
+  edge?: {
+    /**
+     * Configure the viewer request function.
+     *
+     * The viewer request function can be used to modify incoming requests before they
+     * reach your origin server. For example, you can redirect users, rewrite URLs,
+     * or add headers.
+     */
+    viewerRequest?: Input<{
+      /**
+       * The code to inject into the viewer request function.
+       *
+       * By default, a viewer request function is created to:
+       * - Disable CloudFront default URL if custom domain is set.
+       * - Add the `x-forwarded-host` header.
+       * - Route requests to the corresponding target based on the domain and request path.
+       *
+       * The given code will be injected at the beginning of this function.
+       *
+       * ```js
+       * async function handler(event) {
+       *   // User injected code
+       *
+       *   // Default behavior code
+       *
+       *   return event.request;
+       * }
+       * ```
+       *
+       * @example
+       * To add a custom header to all requests.
+       *
+       * ```js
+       * {
+       *   edge: {
+       *     viewerRequest: {
+       *       injection: `event.request.headers["x-foo"] = "bar";`
+       *     }
+       *   }
+       * }
+       * ```
+       */
+      injection: Input<string>;
+      /**
+       * The KV store to associate with the viewer request function.
+       *
+       * @example
+       * ```js
+       * {
+       *   edge: {
+       *     viewerRequest: {
+       *       kvStore: "arn:aws:cloudfront::123456789012:key-value-store/my-store"
+       *     }
+       *   }
+       * }
+       * ```
+       */
+      kvStore?: Input<string>;
+    }>;
+    /**
+     * Configure the viewer response function.
+     *
+     * The viewer response function can be used to modify outgoing responses before
+     * they are sent to the client. For example, you can add security headers or change
+     * the response status code.
+     *
+     * By default, no viewer response function is set. A new function will be created
+     * with the provided code.
+     */
+    viewerResponse?: Input<{
+      /**
+       * The code to inject into the viewer response function.
+       *
+       * ```js
+       * async function handler(event) {
+       *   // User injected code
+       *
+       *   return event.response;
+       * }
+       * ```
+       *
+       * @example
+       * To add a custom header to all responses.
+       *
+       * ```js
+       * {
+       *   edge: {
+       *     viewerResponse: {
+       *       injection: `event.response.headers["x-foo"] = "bar";`
+       *     }
+       *   }
+       * }
+       * ```
+       */
+      injection: Input<string>;
+      /**
+       * The KV store to associate with the viewer response function.
+       *
+       * @example
+       * ```js
+       * {
+       *   edge: {
+       *     viewerResponse: {
+       *       kvStore: "arn:aws:cloudfront::123456789012:key-value-store/my-store"
+       *     }
+       *   }
+       * }
+       * ```
+       */
+      kvStore?: Input<string>;
+    }>;
+  };
   /**
    * Configure how the CloudFront cache invalidations are handled.
    * :::tip
@@ -491,7 +681,64 @@ export interface RouterArgs {
    * }
    * ```
    */
-  invalidation?: CdnArgs["invalidation"];
+  invalidation?: Input<
+    | boolean
+    | {
+        /**
+         * Configure if `sst deploy` should wait for the CloudFront cache invalidation to finish.
+         *
+         * :::tip
+         * For non-prod environments it might make sense to pass in `false`.
+         * :::
+         *
+         * Waiting for this process to finish ensures that new content will be available after the deploy finishes. However, this process can sometimes take more than 5 mins.
+         * @default `false`
+         * @example
+         * ```js
+         * {
+         *   invalidation: {
+         *     wait: true
+         *   }
+         * }
+         * ```
+         */
+        wait?: Input<boolean>;
+        /**
+         * The invalidation token is used to determine if the cache should be invalidated. If the
+         * token is the same as the previous deployment, the cache will not be invalidated.
+         *
+         * @default A unique value is auto-generated on each deploy
+         * @example
+         * ```js
+         * {
+         *   invalidation: {
+         *     token: "foo123"
+         *   }
+         * }
+         * ```
+         */
+        token?: Input<string>;
+        /**
+         * Specify an array of glob pattern of paths to invalidate.
+         *
+         * :::note
+         * Each glob pattern counts as a single invalidation. However, invalidating `/*` counts as a single invalidation as well.
+         * :::
+         * @default `["/*"]`
+         * @example
+         * Invalidate the `index.html` and all files under the `products/` route. This counts as two invalidations.
+         * ```js
+         * {
+         *   invalidation: {
+         *     paths: ["/index.html", "/products/*"]
+         *   }
+         * }
+         * ```
+         */
+        paths?: Input<Input<string>[]>;
+      }
+  >;
+
   /**
    * [Transform](/docs/components#transform) how this component creates its underlying
    * resources.
@@ -589,7 +836,12 @@ interface RouterRef {
  * ```
  */
 export class Router extends Component implements Link.Linkable {
-  private cdn: Cdn;
+  private constructorName: string;
+  private constructorOpts: ComponentResourceOptions;
+  private cdn: Output<Cdn>;
+  private kvStoreArn?: Output<string>;
+  private kvNamespace?: Output<string>;
+  private hasInlineRoutes?: Output<boolean>;
 
   constructor(
     name: string,
@@ -597,103 +849,156 @@ export class Router extends Component implements Link.Linkable {
     opts: ComponentResourceOptions = {},
   ) {
     super(__pulumiType, name, args, opts);
-    const parent = this;
+    const _refVersion = 2;
+    const self = this;
+    this.constructorName = name;
+    this.constructorOpts = opts;
 
     if (args && "ref" in args) {
       const ref = reference();
-      this.cdn = ref.cdn;
+      this.cdn = output(ref.cdn);
+      this.kvStoreArn = ref.kvStoreArn;
+      this.kvNamespace = ref.kvNamespace;
+      this.hasInlineRoutes = ref.hasInlineRoutes;
       registerOutputs();
       return;
     }
 
-    let defaultCachePolicy: cloudfront.CachePolicy;
-    let defaultCfFunction: cloudfront.Function;
-    let defaultOac: OriginAccessControl;
-    const routes = normalizeRoutes();
+    const hasInlineRoutes = args.routes !== undefined;
 
-    const cdn = createCdn();
+    let cdn, kvStoreArn, kvNamespace;
+    if (hasInlineRoutes) {
+      cdn = handleInlineRoutes();
+    } else {
+      const r = handleLazyRoutes();
+      cdn = output(r.distribution);
+      kvStoreArn = r.kvStoreArn;
+      kvNamespace = output(r.kvNamespace);
+    }
 
     this.cdn = cdn;
+    this.kvStoreArn = kvStoreArn;
+    this.kvNamespace = kvNamespace;
+    this.hasInlineRoutes = output(hasInlineRoutes);
     registerOutputs();
 
     function reference() {
       const ref = args as unknown as RouterRef;
-      const cdn = Cdn.get(`${name}Cdn`, ref.distributionID, { parent });
-      return { cdn };
+      const cdn = Cdn.get(`${name}Cdn`, ref.distributionID, { parent: self });
+      const tags = cdn.nodes.distribution.tags.apply((tags) => {
+        if (tags?.["sst:ref:version"] !== _refVersion.toString()) {
+          throw new VisibleError(
+            [
+              `There have been some minor changes to the "Router" component that's being referenced by "${name}".\n`,
+              `To update, you'll need to redeploy the stage where the Router was created. And then redeploy this stage.`,
+            ].join("\n"),
+          );
+        }
+
+        return {
+          kvStoreArn: tags?.["sst:ref:kv"],
+          kvNamespace: tags?.["sst:ref:kv-namespace"],
+          hasInlineRoutes: tags?.["sst:ref:kv"] === undefined,
+        };
+      });
+
+      return {
+        cdn,
+        kvStoreArn: tags.kvStoreArn,
+        kvNamespace: tags.kvNamespace,
+        hasInlineRoutes: tags.hasInlineRoutes,
+      };
     }
 
     function registerOutputs() {
-      parent.registerOutputs({
-        _hint: args._skipHint ? undefined : parent.url,
+      self.registerOutputs({
+        _hint: args._skipHint ? undefined : self.url,
       });
     }
 
-    function normalizeRoutes() {
-      return output(args.routes).apply((routes) => {
-        return Object.fromEntries(
-          Object.entries(routes).map(([path, route]) => {
-            // Route path must start with "/"
-            if (!path.startsWith("/"))
-              throw new Error(
-                `In "${name}" Router, the route path "${path}" must start with a "/"`,
-              );
+    function handleInlineRoutes() {
+      let defaultCachePolicy: cloudfront.CachePolicy;
+      let defaultCfFunction: cloudfront.Function;
+      let defaultOac: OriginAccessControl;
+      const routes = normalizeRoutes();
+      const cdn = createCdn();
+      return cdn;
 
-            if (
-              typeof route !== "string" &&
-              "url" in route &&
-              "bucket" in route
-            )
-              throw new Error(
-                `In "${name}" Router, the route path "${path}" cannot have both a url and a bucket`,
-              );
+      function normalizeRoutes() {
+        return output(args.routes!).apply((routes) => {
+          const normalizedRoutes = Object.fromEntries(
+            Object.entries(routes).map(([path, route]) => {
+              // Route path must start with "/"
+              if (!path.startsWith("/"))
+                throw new Error(
+                  `In "${name}" Router, the route path "${path}" must start with a "/"`,
+                );
 
-            return [path, typeof route === "string" ? { url: route } : route];
-          }),
-        );
-      });
-    }
+              route = typeof route === "string" ? { url: route } : route;
 
-    function createCfRequestDefaultFunction() {
-      defaultCfFunction =
-        defaultCfFunction ??
-        new cloudfront.Function(
-          `${name}CloudfrontFunction`,
+              const hasUrl = "url" in route ? 1 : 0;
+              const hasBucket = "bucket" in route ? 1 : 0;
+              if (hasUrl + hasBucket !== 1)
+                throw new Error(
+                  `In "${name}" Router, the route path "${path}" can only have one of url or bucket`,
+                );
+
+              return [path, route];
+            }),
+          );
+
+          normalizedRoutes["/*"] = normalizedRoutes["/*"] ?? {
+            url: "https://do-not-exist.sst.dev",
+          };
+
+          return normalizedRoutes;
+        });
+      }
+
+      function createCfRequestDefaultFunction() {
+        defaultCfFunction =
+          defaultCfFunction ??
+          new cloudfront.Function(
+            `${name}CloudfrontFunction`,
+            {
+              runtime: "cloudfront-js-2.0",
+              code: [
+                `async function handler(event) {`,
+                `  event.request.headers["x-forwarded-host"] = event.request.headers.host;`,
+                `  return event.request;`,
+                `}`,
+              ].join("\n"),
+            },
+            { parent: self },
+          );
+        return defaultCfFunction;
+      }
+
+      function createCfRequestFunction(
+        path: string,
+        config:
+          | {
+              injection: string;
+              kvStore?: string;
+              kvStores?: string[];
+            }
+          | undefined,
+        rewrite:
+          | {
+              regex: string;
+              to: string;
+            }
+          | undefined,
+        injectHostHeader: boolean,
+      ) {
+        return new cloudfront.Function(
+          `${name}CloudfrontFunction${hashStringToPrettyString(path, 8)}`,
           {
             runtime: "cloudfront-js-2.0",
-            code: [
-              `async function handler(event) {`,
-              `  event.request.headers["x-forwarded-host"] = event.request.headers.host;`,
-              `  return event.request;`,
-              `}`,
-            ].join("\n"),
-          },
-          { parent },
-        );
-      return defaultCfFunction;
-    }
-
-    function createCfRequestFunction(
-      path: string,
-      config:
-        | {
-            injection: string;
-            kvStores?: string[];
-          }
-        | undefined,
-      rewrite:
-        | {
-            regex: string;
-            to: string;
-          }
-        | undefined,
-      injectHostHeader: boolean,
-    ) {
-      return new cloudfront.Function(
-        `${name}CloudfrontFunction${hashStringToPrettyString(path, 8)}`,
-        {
-          runtime: "cloudfront-js-2.0",
-          keyValueStoreAssociations: config?.kvStores ?? [],
-          code: `
+            keyValueStoreAssociations: config?.kvStore
+              ? [config.kvStore]
+              : config?.kvStores ?? [],
+            code: `
 async function handler(event) {
   ${
     injectHostHeader
@@ -710,185 +1015,406 @@ event.request.uri = event.request.uri.replace(re, "${rewrite.to}");`
   ${config?.injection ?? ""}
   return event.request;
 }`,
-        },
-        { parent },
-      );
-    }
+          },
+          { parent: self },
+        );
+      }
 
-    function createCfResponseFunction(
-      path: string,
-      config: {
-        injection: string;
-        kvStores?: string[];
-      },
-    ) {
-      return new cloudfront.Function(
-        `${name}CloudfrontFunctionResponse${hashStringToPrettyString(path, 8)}`,
-        {
-          runtime: "cloudfront-js-2.0",
-          keyValueStoreAssociations: config!.kvStores ?? [],
-          code: `
+      function createCfResponseFunction(
+        path: string,
+        config: {
+          injection: string;
+          kvStore?: string;
+          kvStores?: string[];
+        },
+      ) {
+        return new cloudfront.Function(
+          `${name}CloudfrontFunctionResponse${hashStringToPrettyString(
+            path,
+            8,
+          )}`,
+          {
+            runtime: "cloudfront-js-2.0",
+            keyValueStoreAssociations: config.kvStore
+              ? [config.kvStore]
+              : config.kvStores ?? [],
+            code: `
 async function handler(event) {
   ${config.injection ?? ""}
   return event.response;
 }`,
-        },
-        { parent },
-      );
-    }
-
-    function createOriginAccessControl() {
-      defaultOac =
-        defaultOac ??
-        new OriginAccessControl(
-          `${name}S3AccessControl`,
-          { name: physicalName(64, name) },
-          { parent, ignoreChanges: ["name"] },
-        );
-      return defaultOac;
-    }
-
-    function createCachePolicy() {
-      defaultCachePolicy =
-        defaultCachePolicy ??
-        new cloudfront.CachePolicy(
-          ...transform(
-            args.transform?.cachePolicy,
-            `${name}CachePolicy`,
-            {
-              comment: `${name} router cache policy`,
-              defaultTtl: 0,
-              maxTtl: 31536000, // 1 year
-              minTtl: 0,
-              parametersInCacheKeyAndForwardedToOrigin: {
-                cookiesConfig: {
-                  cookieBehavior: "none",
-                },
-                headersConfig: {
-                  headerBehavior: "none",
-                },
-                queryStringsConfig: {
-                  queryStringBehavior: "all",
-                },
-                enableAcceptEncodingBrotli: true,
-                enableAcceptEncodingGzip: true,
-              },
-            },
-            { parent },
-          ),
-        );
-
-      return defaultCachePolicy;
-    }
-
-    function createCdn() {
-      const origins = buildOrigins();
-      const behaviors = buildBehaviors();
-
-      return new Cdn(
-        ...transform(
-          args.transform?.cdn,
-          `${name}Cdn`,
-          {
-            comment: `${name} router`,
-            origins,
-            defaultCacheBehavior: behaviors.apply(
-              (behaviors) => behaviors.find((b) => !b.pathPattern)!,
-            ),
-            orderedCacheBehaviors: behaviors.apply(
-              (behaviors) =>
-                behaviors.filter(
-                  (b) => b.pathPattern,
-                ) as types.input.cloudfront.DistributionOrderedCacheBehavior[],
-            ),
-            domain: args.domain,
-            invalidation: args.invalidation,
-            wait: true,
           },
-          { parent },
-        ),
-      );
-    }
+          { parent: self },
+        );
+      }
 
-    function buildOrigins() {
-      const urlDefaultConfig = {
-        customOriginConfig: {
-          httpPort: 80,
-          httpsPort: 443,
-          originProtocolPolicy: "https-only",
-          originReadTimeout: 20,
-          originSslProtocols: ["TLSv1.2"],
-        },
-      };
+      function createOriginAccessControl() {
+        defaultOac =
+          defaultOac ??
+          new OriginAccessControl(
+            `${name}S3AccessControl`,
+            { name: physicalName(64, name) },
+            { parent: self, ignoreChanges: ["name"] },
+          );
+        return defaultOac;
+      }
 
-      return output(routes).apply((routes) => {
-        const origins = Object.entries(routes).map(([path, route]) => {
-          if ("url" in route) {
-            return {
-              originId: path,
-              domainName: new URL(route.url).host,
-              ...urlDefaultConfig,
-            };
-          }
+      function createCachePolicy() {
+        defaultCachePolicy =
+          defaultCachePolicy ??
+          new cloudfront.CachePolicy(
+            ...transform(
+              args.transform?.cachePolicy,
+              `${name}CachePolicy`,
+              {
+                comment: `${name} router cache policy`,
+                defaultTtl: 0,
+                maxTtl: 31536000, // 1 year
+                minTtl: 0,
+                parametersInCacheKeyAndForwardedToOrigin: {
+                  cookiesConfig: {
+                    cookieBehavior: "none",
+                  },
+                  headersConfig: {
+                    headerBehavior: "none",
+                  },
+                  queryStringsConfig: {
+                    queryStringBehavior: "all",
+                  },
+                  enableAcceptEncodingBrotli: true,
+                  enableAcceptEncodingGzip: true,
+                },
+              },
+              { parent: self },
+            ),
+          );
 
-          return {
-            originId: path,
-            domainName:
-              route.bucket instanceof Bucket
-                ? route.bucket.nodes.bucket.bucketRegionalDomainName
-                : route.bucket!,
-            originPath: "",
-            originAccessControlId: createOriginAccessControl().id,
-          };
+        return defaultCachePolicy;
+      }
+
+      function createCdn() {
+        return routes.apply((routes) => {
+          const distributionData = Object.entries(routes).map(
+            ([path, route]) => {
+              if ("url" in route) {
+                return {
+                  origin: {
+                    originId: path,
+                    domainName: new URL(route.url).host,
+                    customOriginConfig: {
+                      httpPort: 80,
+                      httpsPort: 443,
+                      originProtocolPolicy: "https-only",
+                      originReadTimeout: 20,
+                      originSslProtocols: ["TLSv1.2"],
+                    },
+                  },
+                  behavior: {
+                    pathPattern: path,
+                    targetOriginId: path,
+                    functionAssociations: [
+                      ...(route.edge?.viewerRequest || route.rewrite
+                        ? [
+                            {
+                              eventType: "viewer-request",
+                              functionArn:
+                                route.edge?.viewerRequest || route.rewrite
+                                  ? createCfRequestFunction(
+                                      path,
+                                      route.edge?.viewerRequest,
+                                      route.rewrite,
+                                      "url" in route,
+                                    ).arn
+                                  : createCfRequestDefaultFunction().arn,
+                            },
+                          ]
+                        : []),
+                      ...(route.edge?.viewerResponse
+                        ? [
+                            {
+                              eventType: "viewer-response",
+                              functionArn: createCfResponseFunction(
+                                path,
+                                route.edge.viewerResponse,
+                              ).arn,
+                            },
+                          ]
+                        : []),
+                    ],
+                    viewerProtocolPolicy: "redirect-to-https",
+                    allowedMethods: [
+                      "DELETE",
+                      "GET",
+                      "HEAD",
+                      "OPTIONS",
+                      "PATCH",
+                      "POST",
+                      "PUT",
+                    ],
+                    cachedMethods: ["GET", "HEAD"],
+                    defaultTtl: 0,
+                    compress: true,
+                    cachePolicyId: route.cachePolicy ?? createCachePolicy().id,
+                    // CloudFront's Managed-AllViewerExceptHostHeader policy
+                    originRequestPolicyId:
+                      "b689b0a8-53d0-40ab-baf2-68738e2966ac",
+                  },
+                };
+              } else if ("bucket" in route) {
+                return {
+                  origin: {
+                    originId: path,
+                    domainName:
+                      route.bucket instanceof Bucket
+                        ? route.bucket.nodes.bucket.bucketRegionalDomainName
+                        : route.bucket!,
+                    originPath: "",
+                    originAccessControlId: createOriginAccessControl().id,
+                  },
+                  behavior: {
+                    pathPattern: path,
+                    targetOriginId: path,
+                    viewerProtocolPolicy: "redirect-to-https",
+                    allowedMethods: ["GET", "HEAD", "OPTIONS"],
+                    cachedMethods: ["GET", "HEAD"],
+                    compress: true,
+                    // CloudFront's managed CachingOptimized policy
+                    cachePolicyId:
+                      route.cachePolicy ??
+                      "658327ea-f89d-4fab-a63d-7e88639e58f6",
+                  },
+                };
+              }
+              throw new Error("Invalid route type");
+            },
+          );
+
+          return new Cdn(
+            ...transform(
+              args.transform?.cdn,
+              `${name}Cdn`,
+              {
+                comment: `${name} router`,
+                origins: distributionData.map((d) => d.origin),
+                defaultCacheBehavior: {
+                  ...distributionData.find(
+                    (d) => d.behavior.pathPattern === "/*",
+                  )!.behavior,
+                  // @ts-expect-error
+                  pathPattern: undefined,
+                },
+                orderedCacheBehaviors: distributionData
+                  .filter((d) => d.behavior.pathPattern !== "/*")
+                  .map((d) => d.behavior),
+                domain: args.domain,
+                wait: true,
+              },
+              { parent: self },
+            ),
+          );
         });
-
-        if (!routes["/*"]) {
-          origins.push({
-            originId: "/*",
-            domainName: "do-not-exist.sst.dev",
-            ...urlDefaultConfig,
-          });
-        }
-        return origins;
-      });
+      }
     }
 
-    function buildBehaviors() {
-      return output(routes).apply((routes) => {
-        const behaviors = Object.entries(routes).map(([path, route]) => ({
-          ...(path === "/*" ? {} : { pathPattern: path }),
-          targetOriginId: path,
-          functionAssociations: [
-            ...("url" in route || route.edge?.viewerRequest || route.rewrite
-              ? [
-                  {
-                    eventType: "viewer-request",
-                    functionArn:
-                      route.edge?.viewerRequest || route.rewrite
-                        ? createCfRequestFunction(
-                            path,
-                            route.edge?.viewerRequest,
-                            route.rewrite,
-                            "url" in route,
-                          ).arn
-                        : createCfRequestDefaultFunction().arn,
+    function handleLazyRoutes() {
+      const kvNamespace = buildRequestKvNamespace();
+      const kvStoreArn = createRequestKvStore();
+      const requestFunction = createRequestFunction();
+      const responseFunction = createResponseFunction();
+      const cachePolicyId = createCachePolicy().id;
+      const distribution = createDistribution();
+
+      return { kvNamespace, kvStoreArn, distribution };
+
+      function buildRequestKvNamespace() {
+        // In the case multiple routers use the same kv store, we need to namespace the keys
+        return crypto
+          .createHash("md5")
+          .update(`${$app.name}-${$app.stage}-${name}`)
+          .digest("hex")
+          .substring(0, 4);
+      }
+
+      function createRequestKvStore() {
+        return output(args.edge).apply((edge) => {
+          const viewerRequest = edge?.viewerRequest;
+          const userKvStore = viewerRequest?.kvStore;
+          if (userKvStore) return output(userKvStore);
+
+          return new cloudfront.KeyValueStore(
+            `${name}KvStore`,
+            {},
+            { parent: self },
+          ).arn;
+        });
+      }
+
+      function createCachePolicy() {
+        return new cloudfront.CachePolicy(
+          `${name}ServerCachePolicy`,
+          {
+            comment: "SST server response cache policy",
+            defaultTtl: 0,
+            maxTtl: 31536000, // 1 year
+            minTtl: 0,
+            parametersInCacheKeyAndForwardedToOrigin: {
+              cookiesConfig: {
+                cookieBehavior: "none",
+              },
+              headersConfig: {
+                headerBehavior: "whitelist",
+                headers: {
+                  items: ["x-open-next-cache-key"],
+                },
+              },
+              queryStringsConfig: {
+                queryStringBehavior: "all",
+              },
+              enableAcceptEncodingBrotli: true,
+              enableAcceptEncodingGzip: true,
+            },
+          },
+          { parent: self },
+        );
+      }
+
+      function createRequestFunction() {
+        return output(args.edge).apply((edge) => {
+          const userInjection = edge?.viewerRequest?.injection ?? "";
+          const blockCloudfrontUrlInjection = args.domain
+            ? CF_BLOCK_CLOUDFRONT_URL_INJECTION
+            : "";
+          return new cloudfront.Function(
+            `${name}CloudfrontFunctionRequest`,
+            {
+              runtime: "cloudfront-js-2.0",
+              keyValueStoreAssociations: kvStoreArn ? [kvStoreArn] : [],
+              code: interpolate`
+import cf from "cloudfront";
+async function handler(event) {
+  ${userInjection}
+  ${blockCloudfrontUrlInjection}
+  ${CF_SITE_ROUTER_INJECTION}
+
+  const routerNS = "${kvNamespace}";
+
+  async function getRoutes() {
+    let routes = [];
+    try {
+      const v = await cf.kvs().get(routerNS + ":routes");
+      routes = JSON.parse(v);
+    } catch (e) {}
+    return routes;
+  }
+
+  async function matchRoute(routes) {
+    const requestHost = event.request.headers.host.value;
+    const match = routes
+      ${
+        /*
+        Route format: [type, routeNamespace, hostRegex, pathPrefix]
+        - First sort by host pattern (longest first)
+        - Then sort by path prefix (longest first)
+      */ ""
+      }
+      .map(r => {
+        var parts = r.split(",");
+        return { 
+          type: parts[0], 
+          routeNs: parts[1], 
+          host: parts[2],
+          path: parts[3]
+        };
+      })
+      .sort((a, b) => {
+        return (a.host.length !== b.host.length)
+          ? b.host.length - a.host.length
+          : b.path.length - a.path.length;
+      })
+      .find(r => {
+        const hostMatches = r.host === "" || new RegExp(r.host).test("^" + requestHost + "$");
+        const pathMatches = event.request.uri.startsWith(r.path);
+        return hostMatches && pathMatches;
+      });
+
+    // Load metadata
+    if (match) {
+      try {
+        const v = await cf.kvs().get(match.routeNs + ":metadata");
+        return { type: match.type, routeNs: match.routeNs, metadata: JSON.parse(v) };
+      } catch (e) {}
+    }
+  }
+
+  // Look up the route
+  const routes = await getRoutes();
+  const route = await matchRoute(routes);
+  if (!route) return event.request;
+  if (route.metadata.rewrite) {
+    const rw = route.metadata.rewrite;
+    event.request.uri = event.request.uri.replace(new RegExp(rw.regex), rw.to);
+  }
+  if (route.type === "url") setUrlOrigin(route.metadata.host);
+  if (route.type === "bucket") setS3Origin(route.metadata.domain);
+  if (route.type === "site") await routeSite(route.routeNs, route.metadata);
+  return event.request;
+}
+
+${CF_ROUTER_GLOBAL_INJECTION}`,
+            },
+            { parent: self },
+          );
+        });
+      }
+
+      function createResponseFunction() {
+        return output(args.edge).apply((edge) => {
+          const userConfig = edge?.viewerResponse;
+          const userInjection = userConfig?.injection;
+          const kvStoreArn = userConfig?.kvStore;
+
+          if (!userInjection) return;
+
+          return new cloudfront.Function(
+            `${name}CloudfrontFunctionResponse`,
+            {
+              runtime: "cloudfront-js-2.0",
+              keyValueStoreAssociations: kvStoreArn ? [kvStoreArn] : [],
+              code: `
+import cf from "cloudfront";
+async function handler(event) {
+  ${userInjection}
+  return event.response;
+}`,
+            },
+            { parent: self },
+          );
+        });
+      }
+
+      function createDistribution() {
+        return new Cdn(
+          ...transform(
+            args.transform?.cdn,
+            `${name}Cdn`,
+            {
+              comment: `${name} app`,
+              domain: args.domain,
+              origins: [
+                {
+                  originId: "default",
+                  domainName: "placeholder.sst.dev",
+                  customOriginConfig: {
+                    httpPort: 80,
+                    httpsPort: 443,
+                    originProtocolPolicy: "https-only",
+                    originReadTimeout: 20,
+                    originSslProtocols: ["TLSv1.2"],
                   },
-                ]
-              : []),
-            ...(route.edge?.viewerResponse
-              ? [
-                  {
-                    eventType: "viewer-response",
-                    functionArn: createCfResponseFunction(
-                      path,
-                      route.edge.viewerResponse,
-                    ).arn,
-                  },
-                ]
-              : []),
-          ],
-          ...("url" in route
-            ? {
+                },
+              ],
+              defaultCacheBehavior: {
+                targetOriginId: "default",
                 viewerProtocolPolicy: "redirect-to-https",
                 allowedMethods: [
                   "DELETE",
@@ -900,47 +1426,30 @@ async function handler(event) {
                   "PUT",
                 ],
                 cachedMethods: ["GET", "HEAD"],
-                defaultTtl: 0,
                 compress: true,
-                cachePolicyId: route.cachePolicy ?? createCachePolicy().id,
+                cachePolicyId,
                 // CloudFront's Managed-AllViewerExceptHostHeader policy
                 originRequestPolicyId: "b689b0a8-53d0-40ab-baf2-68738e2966ac",
-              }
-            : {
-                viewerProtocolPolicy: "redirect-to-https",
-                allowedMethods: ["GET", "HEAD", "OPTIONS"],
-                cachedMethods: ["GET", "HEAD"],
-                compress: true,
-                // CloudFront's managed CachingOptimized policy
-                cachePolicyId:
-                  route.cachePolicy ?? "658327ea-f89d-4fab-a63d-7e88639e58f6",
-              }),
-        }));
-
-        if (!routes["/*"]) {
-          behaviors.push({
-            targetOriginId: "/*",
-            functionAssociations: [],
-            viewerProtocolPolicy: "redirect-to-https",
-            allowedMethods: [
-              "DELETE",
-              "GET",
-              "HEAD",
-              "OPTIONS",
-              "PATCH",
-              "POST",
-              "PUT",
-            ],
-            cachedMethods: ["GET", "HEAD"],
-            defaultTtl: 0,
-            compress: true,
-            cachePolicyId: createCachePolicy().id,
-            // CloudFront's Managed-AllViewerExceptHostHeader policy
-            originRequestPolicyId: "b689b0a8-53d0-40ab-baf2-68738e2966ac",
-          });
-        }
-        return behaviors;
-      });
+                functionAssociations: all([
+                  requestFunction,
+                  responseFunction,
+                ]).apply(([reqFn, resFn]) => [
+                  { eventType: "viewer-request", functionArn: reqFn.arn },
+                  ...(resFn
+                    ? [{ eventType: "viewer-response", functionArn: resFn.arn }]
+                    : []),
+                ]),
+              },
+              tags: {
+                "sst:ref:kv": kvStoreArn,
+                "sst:ref:kv-namespace": kvNamespace,
+                "sst:ref:version": _refVersion.toString(),
+              },
+            },
+            { parent: self },
+          ),
+        );
+      }
     }
   }
 
@@ -973,6 +1482,205 @@ async function handler(event) {
        */
       cdn: this.cdn,
     };
+  }
+
+  /**
+   * Add a route with a URL destination to the Router.
+   *
+   * This method allows you to route requests to a URL destination based on a path prefix,
+   * domain pattern, or both.
+   *
+   * @param pattern The pattern to match for this route. This can be:
+   *   - A path prefix like `/api`
+   *   - A domain pattern like `api.example.com`
+   *   - A combined pattern like `dev.example.com/api`
+   * @param url The destination URL to route matching requests to
+   * @param args Additional configuration for the route
+   *
+   * @example
+   * Route by path prefix only:
+   *
+   * ```ts
+   * router.route("/api", "https://api.example.com");
+   * ```
+   *
+   * Route by domain only:
+   *
+   * ```ts
+   * router.route("api.myapp.com/", "https://api.example.com");
+   * ```
+   *
+   * Route by both domain and path:
+   *
+   * ```ts
+   * router.route("dev.myapp.com/api", "https://api.example.com");
+   * ```
+   *
+   * Route with rewriting:
+   *
+   * ```ts
+   * router.route("/api", "https://api.example.com", {
+   *   rewrite: {
+   *     regex: "^/api/(.*)$",
+   *     to: "/$1"
+   *   }
+   * });
+   * ```
+   */
+  public route(
+    pattern: Input<string>,
+    url: Input<string>,
+    args?: Input<RouteArgs>,
+  ) {
+    all([pattern, args, this.hasInlineRoutes]).apply(
+      ([pattern, args, hasInlineRoutes]) => {
+        if (hasInlineRoutes)
+          throw new VisibleError(
+            "Cannot use both `routes` and `.route()` function to add routes.",
+          );
+
+        new RouterUrlRoute(
+          `${this.constructorName}Route${pattern}`,
+          {
+            store: this.kvStoreArn!,
+            routerNamespace: this.kvNamespace!,
+            pattern,
+            host: output(url).apply((url) => new URL(url).host),
+            ...args,
+          },
+          { provider: this.constructorOpts.provider },
+        );
+      },
+    );
+  }
+
+  /**
+   * Add a route with an S3 bucket destination to the Router.
+   *
+   * This method allows you to route requests to an S3 bucket based on
+   * a path prefix, domain pattern, or both.
+   *
+   * @param pattern The pattern to match for this route. This can be:
+   *   - A path prefix like `/files`
+   *   - A domain pattern like `files.example.com`
+   *   - A combined pattern like `dev.example.com/files`
+   * @param bucket The S3 bucket to route matching requests to
+   * @param args Additional configuration for the route
+   *
+   * @example
+   * Route by path prefix only:
+   *
+   * ```ts
+   * router.routeBucket("/files", bucket);
+   * ```
+   *
+   * Route by domain only:
+   *
+   * ```ts
+   * router.routeBucket("files.example.com", bucket);
+   * ```
+   *
+   * Route by both domain and path:
+   *
+   * ```ts
+   * router.routeBucket("dev.example.com/files", bucket);
+   * ```
+   *
+   * Route with path rewriting:
+   *
+   * ```ts
+   * router.routeBucket("/files", bucket, {
+   *   rewrite: {
+   *     regex: "^/files/(.*)$",
+   *     to: "/$1"
+   *   }
+   * });
+   * ```
+   */
+  public routeBucket(
+    pattern: Input<string>,
+    bucket: Input<Bucket>,
+    args?: Input<RouteArgs>,
+  ) {
+    all([pattern, args, this.hasInlineRoutes]).apply(
+      ([pattern, args, hasInlineRoutes]) => {
+        if (hasInlineRoutes)
+          throw new VisibleError(
+            "Cannot use both `routes` and `.routeBucket()` function to add routes.",
+          );
+
+        new RouterBucketRoute(
+          `${this.constructorName}Route${pattern}`,
+          {
+            store: this.kvStoreArn!,
+            routerNamespace: this.kvNamespace!,
+            pattern,
+            bucket,
+            ...args,
+          },
+          { provider: this.constructorOpts.provider },
+        );
+      },
+    );
+  }
+
+  /**
+   * Add a route with an SSR or static site destination to the Router.
+   *
+   * This method allows you to route requests to an SSR site (like Next.js, Remix, SvelteKit)
+   * or a static site based on a path prefix, domain pattern, or both.
+   *
+   * @param pattern The pattern to match for this route. This can be:
+   *   - A path prefix like `/docs`
+   *   - A domain pattern like `docs.example.com`
+   *   - A combined pattern like `dev.example.com/docs`
+   * @param site The SSR or static site to route matching requests to
+   *
+   * :::note
+   * When routing to a site with a path prefix (like `/docs`), you must configure the
+   * corresponding base path in your site's framework configuration. The base path in
+   * the framework configuration must match the path prefix in your router pattern.
+   * :::
+   *
+   * @example
+   * Route by path prefix only:
+   *
+   * ```ts
+   * const site = new sst.aws.NextjsSite("Site", { cdn: false });
+   * router.routeSite("/docs", site);
+   * ```
+   *
+   * Route by domain only:
+   *
+   * ```ts
+   * router.routeSite("docs.example.com/", site);
+   * ```
+   *
+   * Route by both domain and path:
+   *
+   * ```ts
+   * router.routeSite("dev.example.com/docs", site);
+   * ```
+   */
+  public routeSite(pattern: Input<string>, site: Input<SsrSite | StaticSite>) {
+    all([pattern, this.hasInlineRoutes]).apply(([pattern, hasInlineRoutes]) => {
+      if (hasInlineRoutes)
+        throw new VisibleError(
+          "Cannot use both `routes` and `.routeSite()` function to add routes.",
+        );
+
+      new RouterSiteRoute(
+        `${this.constructorName}Route${pattern}`,
+        {
+          store: this.kvStoreArn!,
+          routerNamespace: this.kvNamespace!,
+          pattern,
+          site,
+          distributionId: this.distributionID,
+        },
+        { provider: this.constructorOpts.provider },
+      );
+    });
   }
 
   /** @internal */
@@ -1021,13 +1729,200 @@ async function handler(event) {
     distributionID: Input<string>,
     opts?: ComponentResourceOptions,
   ) {
-    return new Router(name, {
-      ref: true,
-      distributionID: distributionID,
-    } as unknown as RouterArgs);
+    return new Router(
+      name,
+      {
+        ref: true,
+        distributionID: distributionID,
+      } as unknown as RouterArgs,
+      opts,
+    );
   }
 }
 
 const __pulumiType = "sst:aws:Router";
 // @ts-expect-error
 Router.__pulumiType = __pulumiType;
+
+export const CF_BLOCK_CLOUDFRONT_URL_INJECTION = `
+if (event.request.headers.host.value.includes('cloudfront.net')) {
+  return {
+    statusCode: 403,
+    statusDescription: 'Forbidden',
+    body: {
+      encoding: "text",
+      data: '<html><head><title>403 Forbidden</title></head><body><center><h1>403 Forbidden</h1></center></body></html>'
+    }
+  };
+}`;
+
+export const CF_ROUTER_GLOBAL_INJECTION = `
+function setUrlOrigin(urlHost) {
+  cf.updateRequestOrigin({
+    domainName: urlHost,
+    customOriginConfig: {
+      port: 443,
+      protocol: "https",
+      sslProtocols: ["TLSv1.2"],
+    },
+    originAccessControlConfig: {
+      enabled: false,
+    }
+  });
+}
+
+function setS3Origin(s3Domain) {
+  cf.updateRequestOrigin({
+    domainName: s3Domain,
+    originAccessControlConfig: {
+      enabled: true,
+      signingBehavior: "always",
+      signingProtocol: "sigv4",
+      originType: "s3",
+    }
+  });
+}`;
+
+export const CF_SITE_ROUTER_INJECTION = `
+async function routeSite(kvNamespace, metadata) {
+  // Route to S3
+  // - first, remove base path from request uri b/c files are stored in the root
+  // - then, if files are stored in a subdirectory, add it to the request uri
+  const s3Uri = metadata.base
+    ? event.request.uri.replace(metadata.base, "")
+    : event.request.uri;
+  try {
+    const u = decodeURIComponent(s3Uri);
+    const postfixes = u.endsWith("/")
+      ? ["index.html"]
+      : ["", ".html", "/index.html"];
+    const v = await Promise.any(postfixes.map(p => cf.kvs().get(kvNamespace + ":" + u + p).then(v => p)));
+    event.request.uri = metadata.s3.dir + s3Uri + v;
+    setS3Origin(metadata.s3.domain);
+    return;
+  } catch (e) {}
+
+  // Route to custom 404 (no servers)
+  if (metadata.custom404) {
+    event.request.uri = metadata.custom404;
+    setS3Origin(metadata.s3.domain);
+    return;
+  }
+
+  // Route to image optimizer
+  if (metadata.image && event.request.uri.startsWith(metadata.image.pattern)) {
+    setUrlOrigin(metadata.image.host);
+    return;
+  }
+
+  // Route to servers
+  if (metadata.servers){
+    event.request.headers["x-forwarded-host"] = event.request.headers.host;
+    ${
+      // Note: In SvelteKit, form action requests contain "/" in request query string
+      //  ie. POST request with query string "?/action"
+      //  CloudFront does not allow query string with "/". It needs to be encoded.
+      ""
+    }
+    for (var key in event.request.querystring) {
+      if (key.includes("/")) {
+        event.request.querystring[encodeURIComponent(key)] = event.request.querystring[key];
+        delete event.request.querystring[key];
+      }
+    }
+    setNextjsGeoHeaders();
+    setNextjsCacheKey();
+    setUrlOrigin(findNearestServer(metadata.servers));
+  }
+
+  function setNextjsGeoHeaders() {
+    ${
+      // Inject the CloudFront viewer country, region, latitude, and longitude headers into
+      // the request headers for OpenNext to use them for OpenNext to use them
+      ""
+    }
+    if(event.request.headers["cloudfront-viewer-city"]) {
+      event.request.headers["x-open-next-city"] = event.request.headers["cloudfront-viewer-city"];
+    }
+    if(event.request.headers["cloudfront-viewer-country"]) {
+      event.request.headers["x-open-next-country"] = event.request.headers["cloudfront-viewer-country"];
+    }
+    if(event.request.headers["cloudfront-viewer-region"]) {
+      event.request.headers["x-open-next-region"] = event.request.headers["cloudfront-viewer-region"];
+    }
+    if(event.request.headers["cloudfront-viewer-latitude"]) {
+      event.request.headers["x-open-next-latitude"] = event.request.headers["cloudfront-viewer-latitude"];
+    }
+    if(event.request.headers["cloudfront-viewer-longitude"]) {
+      event.request.headers["x-open-next-longitude"] = event.request.headers["cloudfront-viewer-longitude"];
+    }
+  }
+
+  function setNextjsCacheKey() {
+    ${
+      // This function is used to improve cache hit ratio by setting the cache key
+      // based on the request headers and the path. `next/image` only needs the
+      // accept header, and this header is not useful for the rest of the query
+      ""
+    }
+    var cacheKey = "";
+    if (event.request.uri.startsWith("/_next/image")) {
+      cacheKey = getHeader("accept");
+    } else {
+      cacheKey =
+        getHeader("rsc") +
+        getHeader("next-router-prefetch") +
+        getHeader("next-router-state-tree") +
+        getHeader("next-url") +
+        getHeader("x-prerender-revalidate");
+    }
+    if (event.request.cookies["__prerender_bypass"]) {
+      cacheKey += event.request.cookies["__prerender_bypass"]
+        ? event.request.cookies["__prerender_bypass"].value
+        : "";
+    }
+    var crypto = require("crypto");
+    var hashedKey = crypto.createHash("md5").update(cacheKey).digest("hex");
+    event.request.headers["x-open-next-cache-key"] = { value: hashedKey };
+  }
+
+  function getHeader(key) {
+    var header = event.request.headers[key];
+    if (header) {
+      if (header.multiValue) {
+        return header.multiValue.map((header) => header.value).join(",");
+      }
+      if (header.value) {
+        return header.value;
+      }
+    }
+    return "";
+  }
+
+  function findNearestServer(servers) {
+    if (servers.length === 1) return servers[0][0];
+
+    const h = event.request.headers;
+    const lat = h["cloudfront-viewer-latitude"] && h["cloudfront-viewer-latitude"].value;
+    const lon = h["cloudfront-viewer-longitude"] && h["cloudfront-viewer-longitude"].value;
+    if (!lat || !lon) return servers[0][0];
+
+    return servers
+      .map((s) => ({
+        distance: haversineDistance(lat, lon, s[1], s[2]),
+        host: s[0],
+      }))
+      .sort((a, b) => a.distance - b.distance)[0]
+      .host;
+  }
+
+  function haversineDistance(lat1, lon1, lat2, lon2) {
+    const toRad = angle => angle * Math.PI / 180;
+    const radLat1 = toRad(lat1);
+    const radLat2 = toRad(lat2);
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(radLat1) * Math.cos(radLat2) * Math.sin(dLon / 2) ** 2;
+    return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+}`;

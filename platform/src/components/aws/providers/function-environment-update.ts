@@ -1,10 +1,9 @@
 import { CustomResourceOptions, Input, dynamic } from "@pulumi/pulumi";
 import { rpc } from "../../rpc/rpc.js";
-import { FunctionEnvironmentArgs } from "../function.js";
 
 export interface FunctionEnvironmentUpdateInputs {
   functionName: Input<string>;
-  environment: Input<FunctionEnvironmentArgs>;
+  environment: Input<Record<string, Input<string>>>;
   region: Input<string>;
 }
 

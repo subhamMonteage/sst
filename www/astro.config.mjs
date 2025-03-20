@@ -107,7 +107,7 @@ const sidebar = [
           "docs/component/aws/static-site",
           "docs/component/aws/solid-start",
           "docs/component/aws/opencontrol",
-          "docs/component/aws/tanstack-start",
+          "docs/component/aws/tan-stack-start",
           "docs/component/aws/kinesis-stream",
           "docs/component/aws/apigatewayv1",
           "docs/component/aws/apigatewayv2",
