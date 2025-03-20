@@ -107,48 +107,48 @@ export interface SsrSiteArgs extends BaseSsrSiteArgs {
   invalidation?: Input<
     | false
     | {
-        /**
-         * Configure if `sst deploy` should wait for the CloudFront cache invalidation to finish.
-         *
-         * :::tip
-         * For non-prod environments it might make sense to pass in `false`.
-         * :::
-         *
-         * Waiting for this process to finish ensures that new content will be available after the deploy finishes. However, this process can sometimes take more than 5 mins.
-         * @default `false`
-         * @example
-         * ```js
-         * {
-         *   invalidation: {
-         *     wait: true
-         *   }
-         * }
-         * ```
-         */
-        wait?: Input<boolean>;
-        /**
-         * The paths to invalidate.
-         *
-         * You can either pass in an array of glob patterns to invalidate specific files. Or you can use one of these built-in options:
-         * - `all`: All files will be invalidated when any file changes
-         * - `versioned`: Only versioned files will be invalidated when versioned files change
-         *
-         * :::note
-         * Each glob pattern counts as a single invalidation. However, invalidating `all` counts as a single invalidation as well.
-         * :::
-         * @default `"all"`
-         * @example
-         * Invalidate the `index.html` and all files under the `products/` route. This counts as two invalidations.
-         * ```js
-         * {
-         *   invalidation: {
-         *     paths: ["/index.html", "/products/*"]
-         *   }
-         * }
-         * ```
-         */
-        paths?: Input<"all" | "versioned" | string[]>;
-      }
+      /**
+       * Configure if `sst deploy` should wait for the CloudFront cache invalidation to finish.
+       *
+       * :::tip
+       * For non-prod environments it might make sense to pass in `false`.
+       * :::
+       *
+       * Waiting for this process to finish ensures that new content will be available after the deploy finishes. However, this process can sometimes take more than 5 mins.
+       * @default `false`
+       * @example
+       * ```js
+       * {
+       *   invalidation: {
+       *     wait: true
+       *   }
+       * }
+       * ```
+       */
+      wait?: Input<boolean>;
+      /**
+       * The paths to invalidate.
+       *
+       * You can either pass in an array of glob patterns to invalidate specific files. Or you can use one of these built-in options:
+       * - `all`: All files will be invalidated when any file changes
+       * - `versioned`: Only versioned files will be invalidated when versioned files change
+       *
+       * :::note
+       * Each glob pattern counts as a single invalidation. However, invalidating `all` counts as a single invalidation as well.
+       * :::
+       * @default `"all"`
+       * @example
+       * Invalidate the `index.html` and all files under the `products/` route. This counts as two invalidations.
+       * ```js
+       * {
+       *   invalidation: {
+       *     paths: ["/index.html", "/products/*"]
+       *   }
+       * }
+       * ```
+       */
+      paths?: Input<"all" | "versioned" | string[]>;
+    }
   >;
   cdn?: Input<boolean>;
   regions?: Input<string[]>;
@@ -412,6 +412,32 @@ export interface SsrSiteArgs extends BaseSsrSiteArgs {
       }>;
     }>;
   };
+  /**
+   * Configure the server function to connect to private subnets in a virtual private cloud or VPC. This allows it to access private resources.
+   *
+   * @example
+   * Create a `Vpc` component.
+   *
+   * ```js title="sst.config.ts"
+   * const myVpc = new sst.aws.Vpc("MyVpc");
+   * ```
+   *
+   * Or reference an existing VPC.
+   *
+   * ```js title="sst.config.ts"
+   * const myVpc = sst.aws.Vpc.get("MyVpc", {
+   *   id: "vpc-12345678901234567"
+   * });
+   * ```
+   *
+   * And pass it in.
+   *
+   * ```js
+   * {
+   *   vpc: myVpc
+   * }
+   * ```
+   */
   vpc?: FunctionArgs["vpc"];
   /**
    * [Transform](/docs/components#transform) how this component creates its underlying
@@ -445,10 +471,10 @@ export abstract class SsrSite extends Component implements Link.Linkable {
     invalidation: Output<
       | false
       | {
-          paths: string[];
-          version: string;
-          wait: boolean;
-        }
+        paths: string[];
+        version: string;
+        wait: boolean;
+      }
     >;
     invalidationDependsOn: Input<Resource>[];
   };
@@ -1049,11 +1075,11 @@ async function handler(event) {
         `  });`,
         ...(streaming
           ? [
-              `  const response = await p;`,
-              `  responseStream.write(JSON.stringify(response));`,
-              `  responseStream.end();`,
-              `  return;`,
-            ]
+            `  const response = await p;`,
+            `  responseStream.write(JSON.stringify(response));`,
+            `  responseStream.end();`,
+            `  return;`,
+          ]
           : [`  return p;`]),
         `}`,
       ].join("\n");
@@ -1090,13 +1116,13 @@ async function handler(event) {
               // versioned files
               ...(copy.versionedSubDir
                 ? [
-                    {
-                      files: path.posix.join(copy.versionedSubDir, "**"),
-                      cacheControl:
-                        assets?.versionedFilesCacheHeader ??
-                        `public,max-age=${versionedFilesTTL},immutable`,
-                    },
-                  ]
+                  {
+                    files: path.posix.join(copy.versionedSubDir, "**"),
+                    cacheControl:
+                      assets?.versionedFilesCacheHeader ??
+                      `public,max-age=${versionedFilesTTL},immutable`,
+                  },
+                ]
                 : []),
               ...(assets?.fileOptions ?? []),
             ];

@@ -362,22 +362,6 @@ export interface NextjsArgs extends SsrSiteArgs {
     staticEtag?: boolean;
   };
   /**
-   * Configure the [server function](#nodes-server) in your Next.js app to connect
-   * to private subnets in a virtual private cloud or VPC. This allows your app to
-   * access private resources.
-   *
-   * @example
-   * ```js
-   * {
-   *   vpc: {
-   *     securityGroups: ["sg-0399348378a4c256c"],
-   *     subnets: ["subnet-0b6a2b73896dc8c4c", "subnet-021389ebee680c2f0"]
-   *   }
-   * }
-   * ```
-   */
-  vpc?: SsrSiteArgs["vpc"];
-  /**
    * Configure the Next.js app to use an existing CloudFront cache policy.
    *
    * :::note
@@ -606,36 +590,36 @@ export class Nextjs extends SsrSite {
                 },
                 ...(queueArn
                   ? [
-                      {
-                        actions: [
-                          "sqs:SendMessage",
-                          "sqs:GetQueueAttributes",
-                          "sqs:GetQueueUrl",
-                        ],
-                        resources: [queueArn],
-                      },
-                    ]
+                    {
+                      actions: [
+                        "sqs:SendMessage",
+                        "sqs:GetQueueAttributes",
+                        "sqs:GetQueueUrl",
+                      ],
+                      resources: [queueArn],
+                    },
+                  ]
                   : []),
                 ...(tableArn
                   ? [
-                      {
-                        actions: [
-                          "dynamodb:BatchGetItem",
-                          "dynamodb:GetRecords",
-                          "dynamodb:GetShardIterator",
-                          "dynamodb:Query",
-                          "dynamodb:GetItem",
-                          "dynamodb:Scan",
-                          "dynamodb:ConditionCheckItem",
-                          "dynamodb:BatchWriteItem",
-                          "dynamodb:PutItem",
-                          "dynamodb:UpdateItem",
-                          "dynamodb:DeleteItem",
-                          "dynamodb:DescribeTable",
-                        ],
-                        resources: [tableArn, `${tableArn}/*`],
-                      },
-                    ]
+                    {
+                      actions: [
+                        "dynamodb:BatchGetItem",
+                        "dynamodb:GetRecords",
+                        "dynamodb:GetShardIterator",
+                        "dynamodb:Query",
+                        "dynamodb:GetItem",
+                        "dynamodb:Scan",
+                        "dynamodb:ConditionCheckItem",
+                        "dynamodb:BatchWriteItem",
+                        "dynamodb:PutItem",
+                        "dynamodb:UpdateItem",
+                        "dynamodb:DeleteItem",
+                        "dynamodb:DescribeTable",
+                      ],
+                      resources: [tableArn, `${tableArn}/*`],
+                    },
+                  ]
                   : []),
               ],
               injections: [

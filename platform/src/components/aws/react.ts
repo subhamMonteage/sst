@@ -243,22 +243,6 @@ export interface ReactArgs extends SsrSiteArgs {
    */
   assets?: SsrSiteArgs["assets"];
   /**
-   * Configure the [server function](#nodes-server) in your React app to connect
-   * to private subnets in a virtual private cloud or VPC. This allows your app to
-   * access private resources.
-   *
-   * @example
-   * ```js
-   * {
-   *   vpc: {
-   *     securityGroups: ["sg-0399348378a4c256c"],
-   *     subnets: ["subnet-0b6a2b73896dc8c4c", "subnet-021389ebee680c2f0"]
-   *   }
-   * }
-   * ```
-   */
-  vpc?: SsrSiteArgs["vpc"];
-  /**
    * Configure the React app to use an existing CloudFront cache policy. By default,
    * a new cache policy is created. Note that CloudFront has a limit of 20 cache
    * policies per account. This allows you to reuse an existing policy instead of
@@ -394,7 +378,7 @@ export class React extends SsrSite {
     super(__pulumiType, name, args, opts);
   }
 
-  protected normalizeBuildCommand() {}
+  protected normalizeBuildCommand() { }
 
   protected buildPlan(outputPath: Output<string>) {
     return output(outputPath).apply((outputPath) => {
@@ -412,7 +396,7 @@ export class React extends SsrSite {
           const content = fs.readFileSync(viteConfig, "utf-8");
           const match = content.match(/["']?base["']?:\s*["']([^"]+)["']/);
           return match ? match[1] : undefined;
-        } catch (e) {}
+        } catch (e) { }
       })();
 
       // Get base configured in react-router config ie. "/docs/"
@@ -422,7 +406,7 @@ export class React extends SsrSite {
           const content = fs.readFileSync(rrConfig, "utf-8");
           const match = content.match(/["']?basename["']?:\s*["']([^"]+)["']/);
           return match ? match[1] : undefined;
-        } catch (e) {}
+        } catch (e) { }
       })();
 
       if (viteBase) {
@@ -450,25 +434,25 @@ export class React extends SsrSite {
         base: reactRouterBase,
         server: serverPath
           ? (() => {
-              // React does perform their own internal ESBuild process, but it doesn't bundle
-              // 3rd party dependencies by default. In the interest of keeping deployments
-              // seamless for users we will create a server bundle with all dependencies included.
+            // React does perform their own internal ESBuild process, but it doesn't bundle
+            // 3rd party dependencies by default. In the interest of keeping deployments
+            // seamless for users we will create a server bundle with all dependencies included.
 
-              fs.copyFileSync(
-                path.join(
-                  $cli.paths.platform,
-                  "functions",
-                  "react-server",
-                  "server.mjs",
-                ),
-                path.join(outputPath, "build", "server.mjs"),
-              );
+            fs.copyFileSync(
+              path.join(
+                $cli.paths.platform,
+                "functions",
+                "react-server",
+                "server.mjs",
+              ),
+              path.join(outputPath, "build", "server.mjs"),
+            );
 
-              return {
-                handler: path.join(outputPath, "build", "server.handler"),
-                streaming: true,
-              };
-            })()
+            return {
+              handler: path.join(outputPath, "build", "server.handler"),
+              streaming: true,
+            };
+          })()
           : undefined,
         assets: [
           {

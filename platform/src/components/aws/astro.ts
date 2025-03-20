@@ -249,22 +249,6 @@ export interface AstroArgs extends SsrSiteArgs {
    */
   assets?: SsrSiteArgs["assets"];
   /**
-   * Configure the [server function](#nodes-server) in your Astro site to connect
-   * to private subnets in a virtual private cloud or VPC. This allows your site to
-   * access private resources.
-   *
-   * @example
-   * ```js
-   * {
-   *   vpc: {
-   *     securityGroups: ["sg-0399348378a4c256c"],
-   *     subnets: ["subnet-0b6a2b73896dc8c4c", "subnet-021389ebee680c2f0"]
-   *   }
-   * }
-   * ```
-   */
-  vpc?: SsrSiteArgs["vpc"];
-  /**
    * Configure the Astro site to use an existing CloudFront cache policy.
    *
    * :::note
@@ -398,7 +382,7 @@ export class Astro extends SsrSite {
     super(__pulumiType, name, args, opts);
   }
 
-  protected normalizeBuildCommand() {}
+  protected normalizeBuildCommand() { }
 
   protected buildPlan(outputPath: Output<string>) {
     return outputPath.apply((outputPath) => {
@@ -445,18 +429,18 @@ export class Astro extends SsrSite {
         server: isStatic
           ? undefined
           : {
-              handler: path.join(serverOutputPath, "entry.handler"),
-              nodejs: { install: ["sharp"] },
-              streaming: buildMeta.responseMode === "stream",
-              copyFiles: fs.existsSync(path.join(serverOutputPath, "404.html"))
-                ? [
-                    {
-                      from: path.join(serverOutputPath, "404.html"),
-                      to: "404.html",
-                    },
-                  ]
-                : [],
-            },
+            handler: path.join(serverOutputPath, "entry.handler"),
+            nodejs: { install: ["sharp"] },
+            streaming: buildMeta.responseMode === "stream",
+            copyFiles: fs.existsSync(path.join(serverOutputPath, "404.html"))
+              ? [
+                {
+                  from: path.join(serverOutputPath, "404.html"),
+                  to: "404.html",
+                },
+              ]
+              : [],
+          },
         assets: [
           {
             from: buildMeta.clientBuildOutputDir,
@@ -467,9 +451,9 @@ export class Astro extends SsrSite {
         ],
         custom404:
           isStatic &&
-          fs.existsSync(
-            path.join(outputPath, buildMeta.clientBuildOutputDir, "404.html"),
-          )
+            fs.existsSync(
+              path.join(outputPath, buildMeta.clientBuildOutputDir, "404.html"),
+            )
             ? "/404.html"
             : undefined,
       };

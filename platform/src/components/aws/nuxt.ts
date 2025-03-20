@@ -234,22 +234,6 @@ export interface NuxtArgs extends SsrSiteArgs {
    */
   assets?: SsrSiteArgs["assets"];
   /**
-   * Configure the [server function](#nodes-server) in your Nuxt app to connect
-   * to private subnets in a virtual private cloud or VPC. This allows your app to
-   * access private resources.
-   *
-   * @example
-   * ```js
-   * {
-   *   vpc: {
-   *     securityGroups: ["sg-0399348378a4c256c"],
-   *     subnets: ["subnet-0b6a2b73896dc8c4c", "subnet-021389ebee680c2f0"]
-   *   }
-   * }
-   * ```
-   */
-  vpc?: SsrSiteArgs["vpc"];
-  /**
    * Configure the Nuxt app to use an existing CloudFront cache policy.
    *
    * :::note
@@ -383,7 +367,7 @@ export class Nuxt extends SsrSite {
     super(__pulumiType, name, args, opts);
   }
 
-  protected normalizeBuildCommand() {}
+  protected normalizeBuildCommand() { }
 
   protected buildPlan(outputPath: Output<string>) {
     return outputPath.apply((outputPath) => {

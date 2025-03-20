@@ -1159,12 +1159,25 @@ export interface FunctionArgs {
    * Configure the function to connect to private subnets in a virtual private cloud or VPC. This allows your function to access private resources.
    *
    * @example
+   * Create a `Vpc` component.
+   *
+   * ```js title="sst.config.ts"
+   * const myVpc = new sst.aws.Vpc("MyVpc");
+   * ```
+   *
+   * Or reference an existing VPC.
+   *
+   * ```js title="sst.config.ts"
+   * const myVpc = sst.aws.Vpc.get("MyVpc", {
+   *   id: "vpc-12345678901234567"
+   * });
+   * ```
+   *
+   * And pass it in.
+   *
    * ```js
    * {
-   *   vpc: {
-   *     privateSubnets: ["subnet-0b6a2b73896dc8c4c", "subnet-021389ebee680c2f0"]
-   *     securityGroups: ["sg-0399348378a4c256c"],
-   *   }
+   *   vpc: myVpc
    * }
    * ```
    */
