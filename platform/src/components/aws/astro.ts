@@ -387,6 +387,7 @@ export interface AstroArgs extends SsrSiteArgs {
  *   domain: "my-app.com",
  * });
  * router.routeSite("/docs", docs);
+ * ```
  */
 export class Astro extends SsrSite {
   constructor(
