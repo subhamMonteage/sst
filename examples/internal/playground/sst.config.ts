@@ -286,16 +286,17 @@ export default $config({
           regex: "^/api/(.*)$",
           to: "/$1",
         },
+        connectionTimeout: 1,
       });
-      router.routeSite("/rr7", rr7);
-      router.routeSite("/astro5", astro5);
-      router.routeSite("/solid", solid);
-      router.routeSite("/nuxt", nuxt);
-      router.routeSite("/svelte", svelte);
+      //router.routeSite("/rr7", rr7);
+      //router.routeSite("/astro5", astro5);
+      //router.routeSite("/solid", solid);
+      //router.routeSite("/nuxt", nuxt);
+      //router.routeSite("/svelte", svelte);
       //router.routeSite("/tan", tanstackStart);
-      router.routeSite("/analog", analog);
-      router.routeSite("/remix", remix);
-      router.routeSite("/vite", vite);
+      //router.routeSite("/analog", analog);
+      //router.routeSite("/remix", remix);
+      //router.routeSite("/vite", vite);
       router.routeSite("/next", nextjs);
 
       return router;
@@ -492,7 +493,6 @@ export default $config({
           command: "npm run build",
           output: "dist",
         },
-        errorPage: "index.html",
       });
     }
   },

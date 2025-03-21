@@ -15,6 +15,7 @@ declare module "sst" {
     }
     "MyNextjsSite": {
       "type": "sst.aws.Astro"
+      "url": string
     }
     "MyRouter": {
       "type": "sst.aws.Router"
@@ -54,6 +55,7 @@ declare module "sst" {
     }
     "MyStaticSite": {
       "type": "sst.aws.StaticSite"
+      "url": string
     }
     "MyVpc": {
       "type": "sst.aws.Vpc"

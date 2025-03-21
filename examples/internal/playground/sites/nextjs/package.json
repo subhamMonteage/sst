@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "open-build": "npx -y @opennextjs/aws@latest build",
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start"
