@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import type { BuildMetaConfig } from "astro-sst/build-meta";
 import { ComponentResourceOptions, Output } from "@pulumi/pulumi";
 import { isALtB } from "../../util/compare-semver.js";
 import { VisibleError } from "../error.js";
@@ -382,7 +381,7 @@ export class Astro extends SsrSite {
     super(__pulumiType, name, args, opts);
   }
 
-  protected normalizeBuildCommand() { }
+  protected normalizeBuildCommand() {}
 
   protected buildPlan(outputPath: Output<string>) {
     return outputPath.apply((outputPath) => {
@@ -393,9 +392,14 @@ export class Astro extends SsrSite {
           `Build metadata file not found at "${filePath}". Update your "astro-sst" adapter and rebuild your Astro site.`,
         );
       }
-      const buildMeta = JSON.parse(
-        fs.readFileSync(filePath, "utf-8"),
-      ) as BuildMetaConfig;
+      const buildMeta = JSON.parse(fs.readFileSync(filePath, "utf-8")) as {
+        base: string;
+        pluginVersion: string;
+        outputMode: "server" | "static";
+        responseMode: "stream" | "buffer";
+        clientBuildOutputDir: string;
+        clientBuildVersionedSubDir: string;
+      };
       const serverOutputPath = path.join(outputPath, "dist", "server");
 
       if (
@@ -429,18 +433,18 @@ export class Astro extends SsrSite {
         server: isStatic
           ? undefined
           : {
-            handler: path.join(serverOutputPath, "entry.handler"),
-            nodejs: { install: ["sharp"] },
-            streaming: buildMeta.responseMode === "stream",
-            copyFiles: fs.existsSync(path.join(serverOutputPath, "404.html"))
-              ? [
-                {
-                  from: path.join(serverOutputPath, "404.html"),
-                  to: "404.html",
-                },
-              ]
-              : [],
-          },
+              handler: path.join(serverOutputPath, "entry.handler"),
+              nodejs: { install: ["sharp"] },
+              streaming: buildMeta.responseMode === "stream",
+              copyFiles: fs.existsSync(path.join(serverOutputPath, "404.html"))
+                ? [
+                    {
+                      from: path.join(serverOutputPath, "404.html"),
+                      to: "404.html",
+                    },
+                  ]
+                : [],
+            },
         assets: [
           {
             from: buildMeta.clientBuildOutputDir,
@@ -451,9 +455,9 @@ export class Astro extends SsrSite {
         ],
         custom404:
           isStatic &&
-            fs.existsSync(
-              path.join(outputPath, buildMeta.clientBuildOutputDir, "404.html"),
-            )
+          fs.existsSync(
+            path.join(outputPath, buildMeta.clientBuildOutputDir, "404.html"),
+          )
             ? "/404.html"
             : undefined,
       };
