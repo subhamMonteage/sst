@@ -1810,7 +1810,7 @@ async function routeSite(kvNamespace, metadata) {
   }
 
   // Route to image optimizer
-  if (metadata.image && event.request.uri.startsWith(metadata.image.pattern)) {
+  if (metadata.image && event.request.uri.startsWith(metadata.base + metadata.image.pattern)) {
     setUrlOrigin(metadata.image.host);
     return;
   }
