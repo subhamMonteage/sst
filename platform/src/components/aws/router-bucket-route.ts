@@ -8,12 +8,17 @@ import {
   updateKvRoutes,
 } from "./router-base-route";
 import { Bucket } from "./bucket";
+import { RouterBucketRouteArgs } from "./router";
 
 export interface Args extends RouterBaseRouteArgs {
   /**
    * The bucket to route to.
    */
   bucket: Input<Bucket>;
+  /**
+   * Additional arguments for the route.
+   */
+  routeArgs?: Input<RouterBucketRouteArgs>;
 }
 
 /**
@@ -32,12 +37,18 @@ export class RouterBucketRoute extends Component {
 
     const self = this;
 
-    all([args.pattern, args.rewrite]).apply(([pattern, rewrite]) => {
+    all([args.pattern, args.routeArgs]).apply(([pattern, routeArgs]) => {
       const patternData = parsePattern(pattern);
       const namespace = buildKvNamespace(name);
       createKvRouteData(name, args, self, namespace, {
         domain: output(args.bucket).nodes.bucket.bucketRegionalDomainName,
-        rewrite,
+        rewrite: routeArgs?.rewrite,
+        origin: {
+          connectionAttempts: routeArgs?.connectionAttempts,
+          timeouts: {
+            connectionTimeout: routeArgs?.connectionTimeout,
+          },
+        },
       });
       updateKvRoutes(name, args, self, "bucket", namespace, patternData);
     });

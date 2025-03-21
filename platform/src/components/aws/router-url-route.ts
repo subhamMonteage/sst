@@ -1,4 +1,4 @@
-import { ComponentResourceOptions, Input, all, output } from "@pulumi/pulumi";
+import { ComponentResourceOptions, Input, all } from "@pulumi/pulumi";
 import { Component } from "../component";
 import {
   buildKvNamespace,
@@ -7,12 +7,17 @@ import {
   RouterBaseRouteArgs,
   updateKvRoutes,
 } from "./router-base-route";
+import { RouterUrlRouteArgs } from "./router";
 
 export interface Args extends RouterBaseRouteArgs {
   /**
    * The host to route to.
    */
   host: Input<string>;
+  /**
+   * Additional arguments for the route.
+   */
+  routeArgs?: Input<RouterUrlRouteArgs>;
 }
 
 /**
@@ -31,12 +36,20 @@ export class RouterUrlRoute extends Component {
 
     const self = this;
 
-    all([args.pattern, args.rewrite]).apply(([pattern, rewrite]) => {
+    all([args.pattern, args.routeArgs]).apply(([pattern, routeArgs]) => {
       const patternData = parsePattern(pattern);
       const namespace = buildKvNamespace(name);
       createKvRouteData(name, args, self, namespace, {
         host: args.host,
-        rewrite,
+        rewrite: routeArgs?.rewrite,
+        origin: {
+          connectionAttempts: routeArgs?.connectionAttempts,
+          timeouts: {
+            connectionTimeout: routeArgs?.connectionTimeout,
+            readTimeout: routeArgs?.readTimeout,
+            keepAliveTimeout: routeArgs?.keepAliveTimeout,
+          },
+        },
       });
       updateKvRoutes(name, args, self, "url", namespace, patternData);
     });

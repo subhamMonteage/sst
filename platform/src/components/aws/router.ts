@@ -335,7 +335,7 @@ interface InlineBaseRouteArgs {
   };
 }
 
-export interface RouteArgs {
+interface RouteArgs {
   /**
    * Rewrite the request path.
    *
@@ -383,7 +383,60 @@ export interface RouteArgs {
      */
     to: Input<string>;
   }>;
+  /**
+   * The number of times that CloudFront attempts to connect to the origin. Must be
+   * between 1 and 3.
+   * @default 3
+   * @example
+   * ```js
+   * {
+   *   connectionAttempts: 1
+   * }
+   * ```
+   */
+  connectionAttempts?: Input<number>;
+  /**
+   * The number of seconds that CloudFront waits before timing out and closing the
+   * connection to the origin. Must be between 1 and 10.
+   * @default 10
+   * @example
+   * ```js
+   * {
+   *   connectionTimeout: 3
+   * }
+   * ```
+   */
+  connectionTimeout?: Input<number>;
 }
+
+export interface RouterUrlRouteArgs extends RouteArgs {
+  /**
+   * The number of seconds that CloudFront waits for a response after forwarding a request
+   * to the origin. Must be between 1 and 60.
+   * @default 30
+   * @example
+   * ```js
+   * {
+   *   responseTimeout: 60
+   * }
+   * ```
+   */
+  readTimeout?: Input<number>;
+  /**
+   * The number of seconds that CloudFront should try to maintain the connection to the
+   * origin after receiving the last packet of the response. Must be between 1 and 60.
+   * @default 5
+   * @example
+   * ```js
+   * {
+   *   keepAliveTimeout: 10
+   * }
+   * ```
+   */
+  keepAliveTimeout?: Input<number>;
+}
+
+export interface RouterBucketRouteArgs extends RouteArgs {}
 
 export interface RouterArgs {
   /**
@@ -1354,8 +1407,8 @@ async function handler(event) {
     const rw = route.metadata.rewrite;
     event.request.uri = event.request.uri.replace(new RegExp(rw.regex), rw.to);
   }
-  if (route.type === "url") setUrlOrigin(route.metadata.host);
-  if (route.type === "bucket") setS3Origin(route.metadata.domain);
+  if (route.type === "url") setUrlOrigin(route.metadata.host, route.metadata.origin);
+  if (route.type === "bucket") setS3Origin(route.metadata.domain, route.metadata.origin);
   if (route.type === "site") await routeSite(route.routeNs, route.metadata);
   return event.request;
 }
@@ -1530,7 +1583,7 @@ async function handler(event) {
   public route(
     pattern: Input<string>,
     url: Input<string>,
-    args?: Input<RouteArgs>,
+    args?: Input<RouterUrlRouteArgs>,
   ) {
     all([pattern, args, this.hasInlineRoutes]).apply(
       ([pattern, args, hasInlineRoutes]) => {
@@ -1546,7 +1599,7 @@ async function handler(event) {
             routerNamespace: this.kvNamespace!,
             pattern,
             host: output(url).apply((url) => new URL(url).host),
-            ...args,
+            routeArgs: args,
           },
           { provider: this.constructorOpts.provider },
         );
@@ -1600,7 +1653,7 @@ async function handler(event) {
   public routeBucket(
     pattern: Input<string>,
     bucket: Input<Bucket>,
-    args?: Input<RouteArgs>,
+    args?: Input<RouterBucketRouteArgs>,
   ) {
     all([pattern, args, this.hasInlineRoutes]).apply(
       ([pattern, args, hasInlineRoutes]) => {
@@ -1616,7 +1669,7 @@ async function handler(event) {
             routerNamespace: this.kvNamespace!,
             pattern,
             bucket,
-            ...args,
+            routeArgs: args,
           },
           { provider: this.constructorOpts.provider },
         );
@@ -1757,8 +1810,8 @@ if (event.request.headers.host.value.includes('cloudfront.net')) {
 }`;
 
 export const CF_ROUTER_GLOBAL_INJECTION = `
-function setUrlOrigin(urlHost) {
-  cf.updateRequestOrigin({
+function setUrlOrigin(urlHost, override) {
+  cf.updateRequestOrigin(Object.assign({
     domainName: urlHost,
     customOriginConfig: {
       port: 443,
@@ -1768,19 +1821,19 @@ function setUrlOrigin(urlHost) {
     originAccessControlConfig: {
       enabled: false,
     }
-  });
+  }, override));
 }
 
-function setS3Origin(s3Domain) {
-  cf.updateRequestOrigin({
+function setS3Origin(s3Domain, override) {
+  cf.updateRequestOrigin(Object.assign({
     domainName: s3Domain,
     originAccessControlConfig: {
       enabled: true,
       signingBehavior: "always",
       signingProtocol: "sigv4",
       originType: "s3",
-    }
-  });
+    },
+  }, override));
 }`;
 
 export const CF_SITE_ROUTER_INJECTION = `

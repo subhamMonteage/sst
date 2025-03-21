@@ -1,15 +1,7 @@
 import crypto from "crypto";
-import {
-  ComponentResourceOptions,
-  Input,
-  interpolate,
-  jsonStringify,
-  Output,
-} from "@pulumi/pulumi";
+import { Input, jsonStringify } from "@pulumi/pulumi";
 import { Component } from "../component";
-import { cloudfront } from "@pulumi/aws";
 import { KvRoutesUpdate } from "./providers/kv-routes-update";
-import { RouteArgs } from "./router";
 import { KvKeys } from "./providers/kv-keys";
 
 export interface RouterBaseRouteArgs {
@@ -25,10 +17,6 @@ export interface RouterBaseRouteArgs {
    * The pattern to match.
    */
   pattern: Input<string>;
-  /**
-   * Additional arguments for the route.
-   */
-  rewrite?: Input<RouteArgs["rewrite"]>;
 }
 
 export function parsePattern(pattern: string) {
