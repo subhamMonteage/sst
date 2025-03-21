@@ -175,16 +175,11 @@ func (r *KvRoutesUpdate) Create(input *KvRoutesUpdateInputs, output *CreateResul
 	}
 	
 	// Append route if not exists
-	routes := []string{input.Entry}
-	if len(existingRoutes) > 0 {
-		if existsRoute(existingRoutes, input.Entry) {
-			routes = existingRoutes
-		} else {
-			routes = append(existingRoutes, input.Entry)
-			err = r.setRoutes(client, input.Store, fullKey, routes)
-			if err != nil {
-				return err
-			}
+	if !existsRoute(existingRoutes, input.Entry) {
+		routes := append(existingRoutes, input.Entry)
+		err = r.setRoutes(client, input.Store, fullKey, routes)
+		if err != nil {
+			return err
 		}
 	}
 	
