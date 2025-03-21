@@ -107,48 +107,48 @@ export interface SsrSiteArgs extends BaseSsrSiteArgs {
   invalidation?: Input<
     | false
     | {
-      /**
-       * Configure if `sst deploy` should wait for the CloudFront cache invalidation to finish.
-       *
-       * :::tip
-       * For non-prod environments it might make sense to pass in `false`.
-       * :::
-       *
-       * Waiting for this process to finish ensures that new content will be available after the deploy finishes. However, this process can sometimes take more than 5 mins.
-       * @default `false`
-       * @example
-       * ```js
-       * {
-       *   invalidation: {
-       *     wait: true
-       *   }
-       * }
-       * ```
-       */
-      wait?: Input<boolean>;
-      /**
-       * The paths to invalidate.
-       *
-       * You can either pass in an array of glob patterns to invalidate specific files. Or you can use one of these built-in options:
-       * - `all`: All files will be invalidated when any file changes
-       * - `versioned`: Only versioned files will be invalidated when versioned files change
-       *
-       * :::note
-       * Each glob pattern counts as a single invalidation. However, invalidating `all` counts as a single invalidation as well.
-       * :::
-       * @default `"all"`
-       * @example
-       * Invalidate the `index.html` and all files under the `products/` route. This counts as two invalidations.
-       * ```js
-       * {
-       *   invalidation: {
-       *     paths: ["/index.html", "/products/*"]
-       *   }
-       * }
-       * ```
-       */
-      paths?: Input<"all" | "versioned" | string[]>;
-    }
+        /**
+         * Configure if `sst deploy` should wait for the CloudFront cache invalidation to finish.
+         *
+         * :::tip
+         * For non-prod environments it might make sense to pass in `false`.
+         * :::
+         *
+         * Waiting for this process to finish ensures that new content will be available after the deploy finishes. However, this process can sometimes take more than 5 mins.
+         * @default `false`
+         * @example
+         * ```js
+         * {
+         *   invalidation: {
+         *     wait: true
+         *   }
+         * }
+         * ```
+         */
+        wait?: Input<boolean>;
+        /**
+         * The paths to invalidate.
+         *
+         * You can either pass in an array of glob patterns to invalidate specific files. Or you can use one of these built-in options:
+         * - `all`: All files will be invalidated when any file changes
+         * - `versioned`: Only versioned files will be invalidated when versioned files change
+         *
+         * :::note
+         * Each glob pattern counts as a single invalidation. However, invalidating `all` counts as a single invalidation as well.
+         * :::
+         * @default `"all"`
+         * @example
+         * Invalidate the `index.html` and all files under the `products/` route. This counts as two invalidations.
+         * ```js
+         * {
+         *   invalidation: {
+         *     paths: ["/index.html", "/products/*"]
+         *   }
+         * }
+         * ```
+         */
+        paths?: Input<"all" | "versioned" | string[]>;
+      }
   >;
   cdn?: Input<boolean>;
   regions?: Input<string[]>;
@@ -291,7 +291,7 @@ export interface SsrSiteArgs extends BaseSsrSiteArgs {
          * - Add the `x-forwarded-host` header
          * - Route assets requests to S3 (static files stored in the bucket)
          * - Route server requests to server functions (dynamic rendering)
-         * 
+         *
          * The function manages routing by:
          * 1. First checking if the requested path exists in S3 (with variations like adding index.html)
          * 2. Serving a custom 404 page from S3 if configured and the path isn't found
@@ -471,10 +471,10 @@ export abstract class SsrSite extends Component implements Link.Linkable {
     invalidation: Output<
       | false
       | {
-        paths: string[];
-        version: string;
-        wait: boolean;
-      }
+          paths: string[];
+          version: string;
+          wait: boolean;
+        }
     >;
     invalidationDependsOn: Input<Resource>[];
   };
@@ -763,11 +763,11 @@ async function handler(event) {
       invalidationDependsOn: [assetsUploaded],
     };
     this.registerOutputs({
-      _hint: distribution.apply((d) => d?.domainUrl ?? d?.url),
+      _hint: this.url,
       _metadata: {
         mode: "deployed",
         path: sitePath,
-        url: distribution.apply((d) => d?.domainUrl ?? d?.url),
+        url: this.url,
         edge: false,
         server: server.arn,
       },
@@ -1075,11 +1075,11 @@ async function handler(event) {
         `  });`,
         ...(streaming
           ? [
-            `  const response = await p;`,
-            `  responseStream.write(JSON.stringify(response));`,
-            `  responseStream.end();`,
-            `  return;`,
-          ]
+              `  const response = await p;`,
+              `  responseStream.write(JSON.stringify(response));`,
+              `  responseStream.end();`,
+              `  return;`,
+            ]
           : [`  return p;`]),
         `}`,
       ].join("\n");
@@ -1116,13 +1116,13 @@ async function handler(event) {
               // versioned files
               ...(copy.versionedSubDir
                 ? [
-                  {
-                    files: path.posix.join(copy.versionedSubDir, "**"),
-                    cacheControl:
-                      assets?.versionedFilesCacheHeader ??
-                      `public,max-age=${versionedFilesTTL},immutable`,
-                  },
-                ]
+                    {
+                      files: path.posix.join(copy.versionedSubDir, "**"),
+                      cacheControl:
+                        assets?.versionedFilesCacheHeader ??
+                        `public,max-age=${versionedFilesTTL},immutable`,
+                    },
+                  ]
                 : []),
               ...(assets?.fileOptions ?? []),
             ];
@@ -1318,7 +1318,9 @@ async function handler(event) {
   public get url() {
     return all([this.cdn, this.devUrl]).apply(([cdn, dev]) => {
       if (!cdn) return;
-      return cdn.domainUrl ?? cdn.url ?? dev!;
+      return all([cdn.domainUrl, cdn.url]).apply(
+        ([domainUrl, url]) => domainUrl ?? url ?? dev!,
+      );
     });
   }
 
