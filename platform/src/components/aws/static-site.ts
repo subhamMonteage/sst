@@ -928,10 +928,11 @@ async function handler(event) {
     }
 
     function normalizeErrorPage() {
-      return output(args.errorPage).apply((v) => {
-        if (!v) return undefined;
-        return "/" + v.replace(/^\//, "");
-      });
+      return all([indexPage, args.errorPage]).apply(
+        ([indexPage, errorPage]) => {
+          return "/" + (errorPage ?? indexPage).replace(/^\//, "");
+        },
+      );
     }
 
     function normalizeAsssets() {
