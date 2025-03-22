@@ -1409,7 +1409,10 @@ async function handler(event) {
     const rw = route.metadata.rewrite;
     event.request.uri = event.request.uri.replace(new RegExp(rw.regex), rw.to);
   }
-  if (route.type === "url") setUrlOrigin(route.metadata.host, route.metadata.origin);
+  if (route.type === "url") {
+    event.request.headers["x-forwarded-host"] = event.request.headers.host;
+    setUrlOrigin(route.metadata.host, route.metadata.origin);
+  }
   if (route.type === "bucket") setS3Origin(route.metadata.domain, route.metadata.origin);
   if (route.type === "site") await routeSite(route.routeNs, route.metadata);
   return event.request;
