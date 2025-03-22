@@ -35,6 +35,7 @@ import {
   CF_BLOCK_CLOUDFRONT_URL_INJECTION,
 } from "./router.js";
 import { DistributionInvalidation } from "./providers/distribution-invalidation.js";
+import { toSeconds } from "../duration.js";
 
 const supportedRegions = {
   "af-south-1": { lat: -33.9249, lon: 18.4241 }, // Cape Town, South Africa
@@ -195,6 +196,21 @@ export interface SsrSiteArgs extends BaseSsrSiteArgs {
      * ```
      */
     runtime?: Input<"nodejs18.x" | "nodejs20.x" | "nodejs22.x">;
+    /**
+     * The maximum amount of time the server function can run. The minimum timeout is 1
+     * second and the maximum is 60 seconds.
+     *
+     * @default `"20 seconds"`
+     * @example
+     * ```js
+     * {
+     *   server: {
+     *     timeout: "50 seconds"
+     *   }
+     * }
+     * ```
+     */
+    timeout?: FunctionArgs["timeout"];
     /**
      * The [architecture](https://docs.aws.amazon.com/lambda/latest/dg/foundation-arch.html)
      * of the server function.
@@ -500,10 +516,11 @@ export abstract class SsrSite extends Component implements Link.Linkable {
 
     const parent = this;
     const regions = normalizeRegions();
+    const serverTimeout = normalizeServerTimeout();
     const buildCommand = this.normalizeBuildCommand(args);
     const sitePath = regions.apply(() => normalizeSitePath());
     const dev = normalizeDev();
-    const purge = normalizePurge();
+    const purge = output(args.assets).apply((assets) => assets?.purge ?? false);
 
     if (dev.enabled) {
       const server = createDevServer();
@@ -532,6 +549,9 @@ export abstract class SsrSite extends Component implements Link.Linkable {
     const bucket = createS3Bucket();
     const plan = validatePlan(
       this.buildPlan(outputPath, name, args, { bucket }),
+    );
+    const timeout = all([serverTimeout, plan.server]).apply(
+      ([argsTimeout, plan]) => argsTimeout ?? plan?.timeout ?? "20 seconds",
     );
     const servers = createServers();
     const imageOptimizer = createImageOptimizer();
@@ -847,8 +867,16 @@ async function handler(event) {
       });
     }
 
-    function normalizePurge() {
-      return output(args.assets).apply((assets) => assets?.purge ?? false);
+    function normalizeServerTimeout() {
+      return output(args.server?.timeout).apply((v) => {
+        if (!v) return v;
+        const seconds = toSeconds(v);
+        if (seconds > 60)
+          throw new VisibleError(
+            `Server timeout for "${name}" cannot be greater than 60 seconds.`,
+          );
+        return v;
+      });
     }
 
     function createDevServer() {
@@ -936,7 +964,7 @@ async function handler(event) {
                 runtime: output(args.server?.runtime).apply(
                   (v) => v ?? planServer.runtime ?? "nodejs20.x",
                 ),
-                timeout: planServer.timeout ?? "20 seconds",
+                timeout,
                 memory: output(args.server?.memory).apply(
                   (v) => v ?? planServer.memory ?? "1024 MB",
                 ),
@@ -1182,38 +1210,45 @@ async function handler(event) {
         outputPath,
         plan,
         bucket.nodes.bucket.bucketRegionalDomainName,
-      ]).apply(([servers, imageOptimizer, outputPath, plan, bucketDomain]) =>
-        all([
-          servers.map((s) => ({ region: s.region, url: s.server!.url })),
-          imageOptimizer?.url,
-        ]).apply(([servers, imageOptimizerUrl]) => {
-          const kvEntries = Object.fromEntries(
-            plan.assets.flatMap((copy) => {
-              const files = readDirRecursivelySync(
-                path.join(outputPath, copy.from),
-              );
-              return files.map((file) => [path.posix.join("/", file), "s3"]);
-            }),
-          );
-          kvEntries["metadata"] = JSON.stringify({
-            base: plan.base,
-            custom404: plan.custom404,
-            s3: {
-              domain: bucketDomain,
-              dir: plan.assets[0].to ? "/" + plan.assets[0].to : "",
-            },
-            image: imageOptimizerUrl && {
-              host: new URL(imageOptimizerUrl!).host,
-              pattern: plan.imageOptimizer!.prefix,
-            },
-            servers: servers.map((s) => [
-              new URL(s.url).host,
-              supportedRegions[s.region as keyof typeof supportedRegions].lat,
-              supportedRegions[s.region as keyof typeof supportedRegions].lon,
-            ]),
-          });
-          return kvEntries;
-        }),
+        timeout,
+      ]).apply(
+        ([servers, imageOptimizer, outputPath, plan, bucketDomain, timeout]) =>
+          all([
+            servers.map((s) => ({ region: s.region, url: s.server!.url })),
+            imageOptimizer?.url,
+          ]).apply(([servers, imageOptimizerUrl]) => {
+            const kvEntries = Object.fromEntries(
+              plan.assets.flatMap((copy) => {
+                const files = readDirRecursivelySync(
+                  path.join(outputPath, copy.from),
+                );
+                return files.map((file) => [path.posix.join("/", file), "s3"]);
+              }),
+            );
+            kvEntries["metadata"] = JSON.stringify({
+              base: plan.base,
+              custom404: plan.custom404,
+              s3: {
+                domain: bucketDomain,
+                dir: plan.assets[0].to ? "/" + plan.assets[0].to : "",
+              },
+              image: imageOptimizerUrl && {
+                host: new URL(imageOptimizerUrl!).host,
+                pattern: plan.imageOptimizer!.prefix,
+              },
+              servers: servers.map((s) => [
+                new URL(s.url).host,
+                supportedRegions[s.region as keyof typeof supportedRegions].lat,
+                supportedRegions[s.region as keyof typeof supportedRegions].lon,
+              ]),
+              origin: {
+                timeouts: {
+                  readTimeout: toSeconds(timeout),
+                },
+              },
+            });
+            return kvEntries;
+          }),
       );
     }
 

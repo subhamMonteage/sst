@@ -20,6 +20,7 @@ import { RouterBucketRoute } from "./router-bucket-route";
 import { RouterSiteRoute } from "./router-site-route";
 import { SsrSite } from "./ssr-site";
 import { StaticSite } from "./static-site";
+import { DurationSeconds } from "../duration";
 
 interface InlineUrlRouteArgs extends InlineBaseRouteArgs {
   /**
@@ -397,43 +398,44 @@ interface RouteArgs {
   connectionAttempts?: Input<number>;
   /**
    * The number of seconds that CloudFront waits before timing out and closing the
-   * connection to the origin. Must be between 1 and 10.
-   * @default 10
+   * connection to the origin. Must be between 1 and 10 seconds.
+   * @default `"10 seconds"`
    * @example
    * ```js
    * {
-   *   connectionTimeout: 3
+   *   connectionTimeout: "3 seconds"
    * }
    * ```
    */
-  connectionTimeout?: Input<number>;
+  connectionTimeout?: Input<DurationSeconds>;
 }
 
 export interface RouterUrlRouteArgs extends RouteArgs {
   /**
    * The number of seconds that CloudFront waits for a response after forwarding a request
-   * to the origin. Must be between 1 and 60.
-   * @default 30
+   * to the origin. Must be between 1 and 60 seconds.
+   * @default `"30 seconds"`
    * @example
    * ```js
    * {
-   *   responseTimeout: 60
+   *   responseTimeout: "60 seconds"
    * }
    * ```
    */
-  readTimeout?: Input<number>;
+  readTimeout?: Input<DurationSeconds>;
   /**
    * The number of seconds that CloudFront should try to maintain the connection to the
-   * origin after receiving the last packet of the response. Must be between 1 and 60.
-   * @default 5
+   * origin after receiving the last packet of the response. Must be between 1 and 60 seconds
+   * seconds.
+   * @default `"5 seconds"`
    * @example
    * ```js
    * {
-   *   keepAliveTimeout: 10
+   *   keepAliveTimeout: "10 seconds"
    * }
    * ```
    */
-  keepAliveTimeout?: Input<number>;
+  keepAliveTimeout?: Input<DurationSeconds>;
 }
 
 export interface RouterBucketRouteArgs extends RouteArgs {}
@@ -1885,7 +1887,7 @@ async function routeSite(kvNamespace, metadata) {
     }
     setNextjsGeoHeaders();
     setNextjsCacheKey();
-    setUrlOrigin(findNearestServer(metadata.servers));
+    setUrlOrigin(findNearestServer(metadata.servers), metadata.origin);
   }
 
   function setNextjsGeoHeaders() {

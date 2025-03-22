@@ -8,6 +8,7 @@ import {
   updateKvRoutes,
 } from "./router-base-route";
 import { RouterUrlRouteArgs } from "./router";
+import { toSeconds } from "../duration";
 
 export interface Args extends RouterBaseRouteArgs {
   /**
@@ -45,9 +46,14 @@ export class RouterUrlRoute extends Component {
         origin: {
           connectionAttempts: routeArgs?.connectionAttempts,
           timeouts: {
-            connectionTimeout: routeArgs?.connectionTimeout,
-            readTimeout: routeArgs?.readTimeout,
-            keepAliveTimeout: routeArgs?.keepAliveTimeout,
+            connectionTimeout:
+              routeArgs?.connectionTimeout &&
+              toSeconds(routeArgs?.connectionTimeout),
+            readTimeout:
+              routeArgs?.readTimeout && toSeconds(routeArgs?.readTimeout),
+            keepAliveTimeout:
+              routeArgs?.keepAliveTimeout &&
+              toSeconds(routeArgs?.keepAliveTimeout),
           },
         },
       });

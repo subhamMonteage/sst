@@ -9,6 +9,7 @@ import {
 } from "./router-base-route";
 import { Bucket } from "./bucket";
 import { RouterBucketRouteArgs } from "./router";
+import { toSeconds } from "../duration";
 
 export interface Args extends RouterBaseRouteArgs {
   /**
@@ -46,7 +47,9 @@ export class RouterBucketRoute extends Component {
         origin: {
           connectionAttempts: routeArgs?.connectionAttempts,
           timeouts: {
-            connectionTimeout: routeArgs?.connectionTimeout,
+            connectionTimeout:
+              routeArgs?.connectionTimeout &&
+              toSeconds(routeArgs?.connectionTimeout),
           },
         },
       });
