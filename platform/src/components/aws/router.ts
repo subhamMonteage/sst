@@ -1846,16 +1846,16 @@ async function routeSite(kvNamespace, metadata) {
   // Route to S3
   // - first, remove base path from request uri b/c files are stored in the root
   // - then, if files are stored in a subdirectory, add it to the request uri
-  const s3Uri = metadata.base
+  const baselessUri = metadata.base
     ? event.request.uri.replace(metadata.base, "")
     : event.request.uri;
   try {
-    const u = decodeURIComponent(s3Uri);
+    const u = decodeURIComponent(baselessUri);
     const postfixes = u.endsWith("/")
       ? ["index.html"]
       : ["", ".html", "/index.html"];
     const v = await Promise.any(postfixes.map(p => cf.kvs().get(kvNamespace + ":" + u + p).then(v => p)));
-    event.request.uri = metadata.s3.dir + s3Uri + v;
+    event.request.uri = metadata.s3.dir + baselessUri + v;
     setS3Origin(metadata.s3.domain);
     return;
   } catch (e) {}
@@ -1868,7 +1868,7 @@ async function routeSite(kvNamespace, metadata) {
   }
 
   // Route to image optimizer
-  if (metadata.image && event.request.uri.startsWith(metadata.base + metadata.image.pattern)) {
+  if (metadata.image && baselessUri.startsWith(metadata.image.pattern)) {
     setUrlOrigin(metadata.image.host);
     return;
   }
