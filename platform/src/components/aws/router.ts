@@ -1634,7 +1634,7 @@ async function handler(event) {
                   customOriginConfig: {
                     httpPort: 80,
                     httpsPort: 443,
-                    originProtocolPolicy: "https-only",
+                    originProtocolPolicy: "http-only",
                     originReadTimeout: 20,
                     originSslProtocols: ["TLSv1.2"],
                   },
@@ -2036,8 +2036,8 @@ function setUrlOrigin(urlHost, override) {
     }
   };
   override = override ?? {};
-  if (override.protocol) {
-    origin.customOriginConfig.protocol = override.protocol;
+  if (override.protocol === "http") {
+    delete origin.customOriginConfig;
   }
   if (override.connectionAttempts) {
     origin.connectionAttempts = override.connectionAttempts;

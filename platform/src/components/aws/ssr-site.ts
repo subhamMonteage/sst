@@ -108,48 +108,48 @@ export interface SsrSiteArgs extends BaseSsrSiteArgs {
   invalidation?: Input<
     | false
     | {
-      /**
-       * Configure if `sst deploy` should wait for the CloudFront cache invalidation to finish.
-       *
-       * :::tip
-       * For non-prod environments it might make sense to pass in `false`.
-       * :::
-       *
-       * Waiting for this process to finish ensures that new content will be available after the deploy finishes. However, this process can sometimes take more than 5 mins.
-       * @default `false`
-       * @example
-       * ```js
-       * {
-       *   invalidation: {
-       *     wait: true
-       *   }
-       * }
-       * ```
-       */
-      wait?: Input<boolean>;
-      /**
-       * The paths to invalidate.
-       *
-       * You can either pass in an array of glob patterns to invalidate specific files. Or you can use one of these built-in options:
-       * - `all`: All files will be invalidated when any file changes
-       * - `versioned`: Only versioned files will be invalidated when versioned files change
-       *
-       * :::note
-       * Each glob pattern counts as a single invalidation. However, invalidating `all` counts as a single invalidation as well.
-       * :::
-       * @default `"all"`
-       * @example
-       * Invalidate the `index.html` and all files under the `products/` route. This counts as two invalidations.
-       * ```js
-       * {
-       *   invalidation: {
-       *     paths: ["/index.html", "/products/*"]
-       *   }
-       * }
-       * ```
-       */
-      paths?: Input<"all" | "versioned" | string[]>;
-    }
+        /**
+         * Configure if `sst deploy` should wait for the CloudFront cache invalidation to finish.
+         *
+         * :::tip
+         * For non-prod environments it might make sense to pass in `false`.
+         * :::
+         *
+         * Waiting for this process to finish ensures that new content will be available after the deploy finishes. However, this process can sometimes take more than 5 mins.
+         * @default `false`
+         * @example
+         * ```js
+         * {
+         *   invalidation: {
+         *     wait: true
+         *   }
+         * }
+         * ```
+         */
+        wait?: Input<boolean>;
+        /**
+         * The paths to invalidate.
+         *
+         * You can either pass in an array of glob patterns to invalidate specific files. Or you can use one of these built-in options:
+         * - `all`: All files will be invalidated when any file changes
+         * - `versioned`: Only versioned files will be invalidated when versioned files change
+         *
+         * :::note
+         * Each glob pattern counts as a single invalidation. However, invalidating `all` counts as a single invalidation as well.
+         * :::
+         * @default `"all"`
+         * @example
+         * Invalidate the `index.html` and all files under the `products/` route. This counts as two invalidations.
+         * ```js
+         * {
+         *   invalidation: {
+         *     paths: ["/index.html", "/products/*"]
+         *   }
+         * }
+         * ```
+         */
+        paths?: Input<"all" | "versioned" | string[]>;
+      }
   >;
   /**
    * By default, a standalone CloudFront distribution is created.
@@ -501,10 +501,10 @@ export abstract class SsrSite extends Component implements Link.Linkable {
     invalidation: Output<
       | false
       | {
-        paths: string[];
-        version: string;
-        wait: boolean;
-      }
+          paths: string[];
+          version: string;
+          wait: boolean;
+        }
     >;
     invalidationDependsOn: Input<Resource>[];
   };
@@ -745,7 +745,7 @@ async function handler(event) {
                   customOriginConfig: {
                     httpPort: 80,
                     httpsPort: 443,
-                    originProtocolPolicy: "https-only",
+                    originProtocolPolicy: "http-only",
                     originReadTimeout: 20,
                     originSslProtocols: ["TLSv1.2"],
                   },
@@ -1117,11 +1117,11 @@ async function handler(event) {
         `  });`,
         ...(streaming
           ? [
-            `  const response = await p;`,
-            `  responseStream.write(JSON.stringify(response));`,
-            `  responseStream.end();`,
-            `  return;`,
-          ]
+              `  const response = await p;`,
+              `  responseStream.write(JSON.stringify(response));`,
+              `  responseStream.end();`,
+              `  return;`,
+            ]
           : [`  return p;`]),
         `}`,
       ].join("\n");
@@ -1158,13 +1158,13 @@ async function handler(event) {
               // versioned files
               ...(copy.versionedSubDir
                 ? [
-                  {
-                    files: path.posix.join(copy.versionedSubDir, "**"),
-                    cacheControl:
-                      assets?.versionedFilesCacheHeader ??
-                      `public,max-age=${versionedFilesTTL},immutable`,
-                  },
-                ]
+                    {
+                      files: path.posix.join(copy.versionedSubDir, "**"),
+                      cacheControl:
+                        assets?.versionedFilesCacheHeader ??
+                        `public,max-age=${versionedFilesTTL},immutable`,
+                    },
+                  ]
                 : []),
               ...(assets?.fileOptions ?? []),
             ];
