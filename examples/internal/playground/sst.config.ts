@@ -377,8 +377,11 @@ export default $config({
       return new sst.aws.Service("MyService", {
         cluster,
         loadBalancer: {
-          ports: [
-            { listen: "80/http" },
+          rules: [
+            {
+              listen: "80/http",
+              //container: "app",
+            },
             //{ listen: "80/http", container: "web" },
             //{ listen: "8080/http", container: "sidecar" },
           ],
