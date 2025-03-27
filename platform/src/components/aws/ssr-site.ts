@@ -1366,9 +1366,8 @@ async function handler(event) {
    */
   public get url() {
     return all([this.cdn, this.devUrl]).apply(([cdn, dev]) => {
-      if (!cdn) return;
-      return all([cdn.domainUrl, cdn.url]).apply(
-        ([domainUrl, url]) => domainUrl ?? url ?? dev!,
+      return all([cdn?.domainUrl, cdn?.url]).apply(
+        ([domainUrl, url]) => domainUrl ?? url ?? dev,
       );
     });
   }
