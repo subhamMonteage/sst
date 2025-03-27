@@ -112,7 +112,7 @@ func (err *ErrBuildFailed) Error() string {
 }
 
 var InvalidStageRegex = regexp.MustCompile(`[^a-zA-Z0-9-]`)
-var InvalidAppRegex = regexp.MustCompile(`[^a-zA-Z0-9-]`)
+var InvalidAppRegex = regexp.MustCompile(`^[^a-zA-Z]|[^a-zA-Z0-9-]`)
 
 func New(input *ProjectConfig) (*Project, error) {
 	if InvalidStageRegex.MatchString(input.Stage) {
