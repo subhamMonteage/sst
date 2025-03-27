@@ -371,6 +371,28 @@ export interface StaticSiteArgs extends BaseStaticSiteArgs {
        * ```
        */
       purge?: Input<boolean>;
+      /**
+       * Configure additional asset routes for serving files directly from the S3 bucket.
+       *
+       * These routes allow files stored in specific S3 bucket paths to be served under the
+       * same domain as your site. This is particularly useful for handling user-uploaded
+       * content.
+       *
+       * @example
+       * If user-uploaded files are stored in the `uploads` directory, and no `routes` are
+       * configured, these files will return 404 errors or display the `errorPage` if set.
+       * By including `uploads` in `routes`, all files in that folder will be served
+       * directly from the S3 bucket.
+       *
+       * ```js
+       * {
+       *   assets: {
+       *     routes: ["uploads"]
+       *   }
+       * }
+       * ```
+       */
+      routes?: Input<Input<string>[]>;
     }
   >;
   /**
@@ -938,12 +960,21 @@ async function handler(event) {
     function normalizeAsssets() {
       return {
         ...args.assets,
+        // remove leading and trailing slashes from the path
         path: args.assets?.path
           ? output(args.assets?.path).apply((v) =>
               v.replace(/^\//, "").replace(/\/$/, ""),
             )
           : undefined,
         purge: output(args.assets?.purge ?? true),
+        // normalize to /path format
+        routes: args.assets?.routes
+          ? output(args.assets?.routes).apply((v) =>
+              v.map(
+                (route) => "/" + route.replace(/^\//, "").replace(/\/$/, ""),
+              ),
+            )
+          : undefined,
       };
     }
 
@@ -1054,6 +1085,7 @@ async function handler(event) {
             s3: {
               domain: bucketDomain,
               dir: assets.path ?? "",
+              routes: assets.routes,
             },
           });
           return kvEntries;

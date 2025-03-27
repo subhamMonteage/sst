@@ -2070,24 +2070,37 @@ function setS3Origin(s3Domain, override) {
 
 export const CF_SITE_ROUTER_INJECTION = `
 async function routeSite(kvNamespace, metadata) {
-  // Route to S3
-  // - first, remove base path from request uri b/c files are stored in the root
-  // - then, if files are stored in a subdirectory, add it to the request uri
   const baselessUri = metadata.base
     ? event.request.uri.replace(metadata.base, "")
     : event.request.uri;
+
+  // Route to S3 asset routes
+  if (metadata.s3 && metadata.s3.routes) {
+    for (var i=0, l=metadata.s3.routes.length; i<l; i++) {
+      const route = metadata.s3.routes[i];
+      if (event.request.uri.startsWith(route)) {
+        event.request.uri = baselessUri;
+        setS3Origin(metadata.s3.domain);
+        return;
+      }
+    }
+  }
+
+  // Route to S3
   try {
+    // check using baselessUri b/c files are stored in the root
     const u = decodeURIComponent(baselessUri);
     const postfixes = u.endsWith("/")
       ? ["index.html"]
       : ["", ".html", "/index.html"];
     const v = await Promise.any(postfixes.map(p => cf.kvs().get(kvNamespace + ":" + u + p).then(v => p)));
+    // files are stored in a subdirectory, add it to the request uri
     event.request.uri = metadata.s3.dir + baselessUri + v;
     setS3Origin(metadata.s3.domain);
     return;
   } catch (e) {}
 
-  // Route to custom 404 (no servers)
+  // Route to S3 custom 404 (no servers)
   if (metadata.custom404) {
     event.request.uri = metadata.custom404;
     setS3Origin(metadata.s3.domain);
