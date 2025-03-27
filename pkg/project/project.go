@@ -171,7 +171,10 @@ console.log("~j" + JSON.stringify(mod.app({
 		},
 	)
 	if err != nil {
-		return nil, &ErrBuildFailed{msg: err.Error(), Errors: buildResult.Errors}
+		if buildResult.Errors != nil {
+			return nil, &ErrBuildFailed{msg: err.Error(), Errors: buildResult.Errors}
+		}
+		return nil, err
 	}
 	defer js.Cleanup(buildResult)
 
