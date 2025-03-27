@@ -164,7 +164,7 @@ if (mod.stacks || mod.config) {
   console.log("~v2")
   process.exit(0)
 }
-console.log("~j" + JSON.stringify(mod.app({
+console.log("~j" + JSON.stringify(await mod.app({
   stage: $input.stage || undefined,
 })))`,
 				input.Config),
