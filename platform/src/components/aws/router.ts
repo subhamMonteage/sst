@@ -2078,8 +2078,8 @@ async function routeSite(kvNamespace, metadata) {
   if (metadata.s3 && metadata.s3.routes) {
     for (var i=0, l=metadata.s3.routes.length; i<l; i++) {
       const route = metadata.s3.routes[i];
-      if (event.request.uri.startsWith(route)) {
-        event.request.uri = baselessUri;
+      if (baselessUri.startsWith(route)) {
+        event.request.uri = metadata.s3.dir + baselessUri;
         setS3Origin(metadata.s3.domain);
         return;
       }
@@ -2102,7 +2102,7 @@ async function routeSite(kvNamespace, metadata) {
 
   // Route to S3 custom 404 (no servers)
   if (metadata.custom404) {
-    event.request.uri = metadata.custom404;
+    event.request.uri = metadata.s3.dir + metadata.custom404;
     setS3Origin(metadata.s3.domain);
     return;
   }

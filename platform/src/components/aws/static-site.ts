@@ -1084,7 +1084,7 @@ async function handler(event) {
             custom404: errorPage,
             s3: {
               domain: bucketDomain,
-              dir: assets.path ?? "",
+              dir: assets.path ? "/" + assets.path : "",
               routes: assets.routes,
             },
           });
@@ -1094,8 +1094,8 @@ async function handler(event) {
     }
 
     function buildInvalidation() {
-      return all([outputPath, args.invalidation]).apply(
-        ([outputPath, invalidationRaw]) => {
+      return all([outputPath, args.assets, args.invalidation]).apply(
+        ([outputPath, assets, invalidationRaw]) => {
           // Normalize invalidation
           if (invalidationRaw === false) return false;
           const invalidation = {
@@ -1116,6 +1116,7 @@ async function handler(event) {
           // - nodir: This will prevent symlinks themselves from being copied into the zip.
           // - follow: This will follow symlinks and copy the files within.
           const hash = crypto.createHash("md5");
+          hash.update(JSON.stringify(assets ?? {}));
           globSync("**", {
             dot: true,
             nodir: true,
