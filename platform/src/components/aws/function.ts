@@ -748,6 +748,7 @@ export interface FunctionArgs {
    */
   nodejs?: Input<{
     /**
+     * @internal
      * Point to a file that exports a list of esbuild plugins to use.
      *
      * @example
