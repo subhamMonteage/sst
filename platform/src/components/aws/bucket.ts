@@ -139,6 +139,21 @@ export interface BucketArgs {
    */
   access?: Input<"public" | "cloudfront">;
   /**
+   * Enforce HTTPS for all requests to the bucket.
+   *
+   * If set to `true`, the bucket policy will automatically block any HTTP requests,
+   * ensuring that only secure (HTTPS) connections are allowed. This is done using
+   * the `aws:SecureTransport` condition key.
+   *
+   * @default true
+   * @example
+   * js
+   * {
+   *   enforceHttps: false // Allows both HTTP and HTTPS requests (not recommended)
+   * }
+   */
+  enforceHttps?: Input<boolean>;
+  /**
    * The CORS configuration for the bucket. Defaults to `true`, which is the same as:
    *
    * ```js
@@ -547,6 +562,7 @@ export class Bucket extends Component implements Link.Linkable {
 
     const parent = this;
     const access = normalizeAccess();
+    const enforceHttps = output(args.enforceHttps ?? true);
 
     const bucket = createBucket();
     createVersioning();
@@ -619,7 +635,7 @@ export class Bucket extends Component implements Link.Linkable {
     }
 
     function createBucketPolicy() {
-      return access.apply((access) => {
+      return all([access, enforceHttps]).apply(([access, enforceHttps]) => {
         const statements = [];
         if (access) {
           statements.push({
@@ -627,27 +643,29 @@ export class Bucket extends Component implements Link.Linkable {
               access === "public"
                 ? { type: "*", identifiers: ["*"] }
                 : {
-                  type: "Service",
-                  identifiers: ["cloudfront.amazonaws.com"],
-                },
+                    type: "Service",
+                    identifiers: ["cloudfront.amazonaws.com"],
+                  },
             ],
             actions: ["s3:GetObject"],
             resources: [interpolate`${bucket.arn}/*`],
           });
         }
-        statements.push({
-          effect: "Deny",
-          principals: [{ type: "*", identifiers: ["*"] }],
-          actions: ["s3:*"],
-          resources: [bucket.arn, interpolate`${bucket.arn}/*`],
-          conditions: [
-            {
-              test: "Bool",
-              variable: "aws:SecureTransport",
-              values: ["false"],
-            },
-          ],
-        });
+        if (enforceHttps) {
+          statements.push({
+            effect: "Deny",
+            principals: [{ type: "*", identifiers: ["*"] }],
+            actions: ["s3:*"],
+            resources: [bucket.arn, interpolate`${bucket.arn}/*`],
+            conditions: [
+              {
+                test: "Bool",
+                variable: "aws:SecureTransport",
+                values: ["false"],
+              },
+            ],
+          });
+        }
 
         return new s3.BucketPolicy(
           ...transform(
