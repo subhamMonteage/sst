@@ -89,6 +89,29 @@ export interface VpcArgs {
     | "managed"
     | {
         /**
+         * Configures the type of NAT to create.
+         *
+         * - If `nat.ec2` is provided, `nat.type` defaults to `"ec2"`.
+         * - Otherwise, `nat.type` must be explicitly specified.
+         */
+        type?: Input<"ec2" | "managed">;
+        /**
+         * A list of Elastic IP allocation IDs to use for the NAT Gateways or NAT
+         * instances. The number of allocation IDs must match the number of AZs.
+         *
+         * By default, new Elastic IP addresses are created.
+         *
+         * @example
+         * ```ts
+         * {
+         *   nat: {
+         *     ip: ["eipalloc-0123456789abcdef0", "eipalloc-0123456789abcdef1"]
+         *   }
+         * }
+         * ```
+         */
+        ip?: Input<Input<string>[]>;
+        /**
          * Configures the NAT EC2 instance.
          * @default `{instance: "t4g.nano"}`
          * @example
@@ -102,7 +125,7 @@ export interface VpcArgs {
          * }
          * ```
          */
-        ec2: Input<{
+        ec2?: Input<{
           /**
            * The type of instance to use for the NAT.
            *
@@ -695,11 +718,43 @@ export class Vpc extends Component implements Link.Linkable {
     }
 
     function normalizeNat() {
-      return all([args.nat, args.bastion]).apply(([nat, bastion]) => {
-        if (nat === "managed") return { type: "managed" as const };
-        if (nat === "ec2")
-          return { type: "ec2" as const, ec2: { instance: "t4g.nano" } };
-        if (nat) return { type: "ec2" as const, ec2: nat.ec2 };
+      return all([args.nat, zones]).apply(([nat, zones]) => {
+        if (nat === "managed") {
+          return { type: "managed" as const };
+        }
+        if (nat === "ec2") {
+          return {
+            type: "ec2" as const,
+            ec2: { instance: "t4g.nano", ami: undefined },
+          };
+        }
+        if (nat) {
+          if (nat.ec2 && nat.type === "managed")
+            throw new VisibleError(
+              `"nat.type" cannot be "managed" when "nat.ec2" is specified`,
+            );
+
+          if (!nat.type)
+            throw new VisibleError(
+              `Missing "nat.type" for the "${name}" VPC. It is required when "nat.ec2" is not specified`,
+            );
+
+          if (nat.ip && nat.ip.length !== zones.length)
+            throw new VisibleError(
+              `The number of Elastic IP allocation IDs must match the number of AZs.`,
+            );
+
+          return nat.ec2 || nat.type === "ec2"
+            ? {
+                type: "ec2" as const,
+                ip: nat.ip,
+                ec2: nat.ec2 ?? { instance: "t4g.nano" },
+              }
+            : {
+                type: "managed" as const,
+                ip: nat.ip,
+              };
+        }
         return undefined;
       });
     }
@@ -809,8 +864,10 @@ export class Vpc extends Component implements Link.Linkable {
     }
 
     function createElasticIps() {
-      return publicSubnets.apply((subnets) =>
-        subnets.map(
+      return all([nat, publicSubnets]).apply(([nat, subnets]) => {
+        if (nat?.ip) return [];
+
+        return subnets.map(
           (_, i) =>
             new ec2.Eip(
               ...transform(
@@ -822,8 +879,8 @@ export class Vpc extends Component implements Link.Linkable {
                 { parent: self },
               ),
             ),
-        ),
-      );
+        );
+      });
     }
 
     function createNatGateways() {
@@ -839,7 +896,7 @@ export class Vpc extends Component implements Link.Linkable {
                   `${name}NatGateway${i + 1}`,
                   {
                     subnetId: subnet.id,
-                    allocationId: elasticIps[i].id,
+                    allocationId: elasticIps[i]?.id ?? nat.ip![i],
                   },
                   { parent: self },
                 ),
@@ -962,7 +1019,7 @@ export class Vpc extends Component implements Link.Linkable {
 
             new ec2.EipAssociation(`${name}NatInstanceEipAssociation${i + 1}`, {
               instanceId: instance.id,
-              allocationId: elasticIps[i].id,
+              allocationId: elasticIps[i]?.id ?? nat.ip![i],
             });
 
             return instance;
