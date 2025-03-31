@@ -1849,11 +1849,6 @@ export class Function extends Component implements Link.Linkable {
                     },
                     {
                       effect: "allow",
-                      actions: ["iot:*"],
-                      resources: ["*"],
-                    },
-                    {
-                      effect: "allow",
                       actions: ["s3:*"],
                       resources: [
                         interpolate`arn:${partition}:s3:::${bootstrapData.asset}`,
