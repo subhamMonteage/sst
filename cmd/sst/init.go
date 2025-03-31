@@ -208,7 +208,7 @@ func CmdInit(cli *cli.Cli) error {
 	spin.Suffix = "  Installing providers..."
 	spin.Start()
 
-	cfgPath, err := project.Discover()
+	cfgPath, err := cli.Discover()
 	if err != nil {
 		return err
 	}
