@@ -865,6 +865,7 @@ export class Vpc extends Component implements Link.Linkable {
 
     function createElasticIps() {
       return all([nat, publicSubnets]).apply(([nat, subnets]) => {
+        if (!nat) return;
         if (nat?.ip) return [];
 
         return subnets.map(
