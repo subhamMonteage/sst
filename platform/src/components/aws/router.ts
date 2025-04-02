@@ -1337,22 +1337,18 @@ async function handler(event) {
                     pathPattern: path,
                     targetOriginId: path,
                     functionAssociations: [
-                      ...(route.edge?.viewerRequest || route.rewrite
-                        ? [
-                            {
-                              eventType: "viewer-request",
-                              functionArn:
-                                route.edge?.viewerRequest || route.rewrite
-                                  ? createCfRequestFunction(
-                                      path,
-                                      route.edge?.viewerRequest,
-                                      route.rewrite,
-                                      "url" in route,
-                                    ).arn
-                                  : createCfRequestDefaultFunction().arn,
-                            },
-                          ]
-                        : []),
+                      {
+                        eventType: "viewer-request",
+                        functionArn:
+                          route.edge?.viewerRequest || route.rewrite
+                            ? createCfRequestFunction(
+                                path,
+                                route.edge?.viewerRequest,
+                                route.rewrite,
+                                true,
+                              ).arn
+                            : createCfRequestDefaultFunction().arn,
+                      },
                       ...(route.edge?.viewerResponse
                         ? [
                             {
@@ -1398,6 +1394,35 @@ async function handler(event) {
                   behavior: {
                     pathPattern: path,
                     targetOriginId: path,
+                    functionAssociations: [
+                      ...(route.edge?.viewerRequest || route.rewrite
+                        ? [
+                            {
+                              eventType: "viewer-request",
+                              functionArn:
+                                route.edge?.viewerRequest || route.rewrite
+                                  ? createCfRequestFunction(
+                                      path,
+                                      route.edge?.viewerRequest,
+                                      route.rewrite,
+                                      false,
+                                    ).arn
+                                  : createCfRequestDefaultFunction().arn,
+                            },
+                          ]
+                        : []),
+                      ...(route.edge?.viewerResponse
+                        ? [
+                            {
+                              eventType: "viewer-response",
+                              functionArn: createCfResponseFunction(
+                                path,
+                                route.edge.viewerResponse,
+                              ).arn,
+                            },
+                          ]
+                        : []),
+                    ],
                     viewerProtocolPolicy: "redirect-to-https",
                     allowedMethods: ["GET", "HEAD", "OPTIONS"],
                     cachedMethods: ["GET", "HEAD"],
