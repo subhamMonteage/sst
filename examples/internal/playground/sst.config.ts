@@ -225,78 +225,81 @@ export default $config({
         handler: "functions/router/index.handler",
         url: true,
       });
-      const rr7 = new sst.aws.React("MyRouterSite", {
-        path: "sites/react-router-7-ssr",
-        cdn: false,
-      });
-      const astro5 = new sst.aws.Astro("MyRouterAstroSite", {
-        path: "sites/astro5",
-        cdn: false,
-      });
-      const solid = new sst.aws.SolidStart("MyRouterSolidSite", {
-        path: "sites/solid-start",
-        link: [bucket],
-        cdn: false,
-      });
-      const nuxt = new sst.aws.Nuxt("MyRouterNuxtSite", {
-        path: "sites/nuxt",
-        link: [bucket],
-        cdn: false,
-      });
-      const tanstackStart = new sst.aws.TanStackStart(
-        "MyRouterTanStackStartSite",
-        {
-          path: "sites/tanstack-start",
-          cdn: false,
-        }
-      );
-      const svelte = new sst.aws.SvelteKit("MyRouterSvelteSite", {
-        path: "sites/svelte-kit",
-        link: [bucket],
-        cdn: false,
-      });
-      const analog = new sst.aws.Analog("MyRouterAnalogSite", {
-        path: "sites/analog",
-        link: [bucket],
-        cdn: false,
-      });
-      const remix = new sst.aws.Remix("MyRouterRemixSite", {
-        path: "sites/remix",
-        link: [bucket],
-        cdn: false,
-      });
-      const nextjs = new sst.aws.Nextjs("MyRouterNextSite", {
-        path: "sites/nextjs",
-        link: [bucket],
-        cdn: false,
-        server: {
-          timeout: "50 seconds",
-        },
-      });
-      const vite = new sst.aws.StaticSite("Web", {
-        path: "sites/vite",
-        build: {
-          command: "npm run build",
-          output: "dist",
-        },
-        base: "/vite",
-        cdn: false,
-      });
+      //const rr7 = new sst.aws.React("MyRouterSite", {
+      //  path: "sites/react-router-7-ssr",
+      //  cdn: false,
+      //});
+      //const astro5 = new sst.aws.Astro("MyRouterAstroSite", {
+      //  path: "sites/astro5",
+      //  cdn: false,
+      //});
+      //const solid = new sst.aws.SolidStart("MyRouterSolidSite", {
+      //  path: "sites/solid-start",
+      //  link: [bucket],
+      //  cdn: false,
+      //});
+      //const nuxt = new sst.aws.Nuxt("MyRouterNuxtSite", {
+      //  path: "sites/nuxt",
+      //  link: [bucket],
+      //  cdn: false,
+      //});
+      //const tanstackStart = new sst.aws.TanStackStart(
+      //  "MyRouterTanStackStartSite",
+      //  {
+      //    path: "sites/tanstack-start",
+      //    cdn: false,
+      //  }
+      //);
+      //const svelte = new sst.aws.SvelteKit("MyRouterSvelteSite", {
+      //  path: "sites/svelte-kit",
+      //  link: [bucket],
+      //  cdn: false,
+      //});
+      //const analog = new sst.aws.Analog("MyRouterAnalogSite", {
+      //  path: "sites/analog",
+      //  link: [bucket],
+      //  cdn: false,
+      //});
+      //const remix = new sst.aws.Remix("MyRouterRemixSite", {
+      //  path: "sites/remix",
+      //  link: [bucket],
+      //  cdn: false,
+      //});
+      //const nextjs = new sst.aws.Nextjs("MyRouterNextSite", {
+      //  path: "sites/nextjs",
+      //  link: [bucket],
+      //  cdn: false,
+      //  server: {
+      //    timeout: "50 seconds",
+      //  },
+      //});
+      //const vite = new sst.aws.StaticSite("Web", {
+      //  path: "sites/vite",
+      //  build: {
+      //    command: "npm run build",
+      //    output: "dist",
+      //  },
+      //  base: "/vite",
+      //  cdn: false,
+      //});
 
       const router = new sst.aws.Router("MyRouter", {
         domain: {
           name: "router.playground.sst.sh",
           aliases: ["*.router.playground.sst.sh"],
         },
-      });
-      //router.route("api.router.playground.sst.sh/", app.url);
-      router.route("/api1", app.url, {
-        //rewrite: {
-        //  regex: "^/api/(.*)$",
-        //  to: "/$1",
+        //routes: {
+        //  "/*": app.url,
         //},
-        //connectionTimeout: "1 second",
       });
+      router.route("api.router.playground.sst.sh/", app.url);
+      //router.route("/api", app.url, {
+      //rewrite: {
+      //  regex: "^/api/(.*)$",
+      //  to: "/$1",
+      //},
+      //connectionTimeout: "1 second",
+      //});
       //router.routeSite("/rr7", rr7);
       //router.routeSite("/astro5", astro5);
       //router.routeSite("/solid", solid);
@@ -352,11 +355,13 @@ export default $config({
     }
 
     function addCluster() {
-      return new sst.aws.Cluster("MyCluster", { vpc });
+      return new sst.aws.Cluster("MyCluster", {
+        vpc,
+      });
     }
 
     function addService() {
-      return new sst.aws.Service("MyService", {
+      const service = new sst.aws.Service("MyService", {
         cluster,
         loadBalancer: {
           rules: [
@@ -391,6 +396,8 @@ export default $config({
         //],
         link: [bucket],
       });
+      ret.service = service.service;
+      return service;
     }
 
     function addTask() {
@@ -454,7 +461,12 @@ export default $config({
     }
 
     function addRedis() {
-      const redis = new sst.aws.Redis("MyRedis", { vpc });
+      const redis = new sst.aws.Redis("MyRedis", {
+        vpc,
+        parameters: {
+          "maxmemory-policy": "noeviction",
+        },
+      });
       const app = new sst.aws.Function("MyRedisApp", {
         handler: "functions/redis/index.handler",
         url: true,
