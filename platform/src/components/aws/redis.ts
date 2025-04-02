@@ -67,6 +67,20 @@ export interface RedisArgs {
    */
   nodes?: Input<number>;
   /**
+   * Key-value pairs that define custom parameters for the Redis cluster's parameter group.
+   * These values override the defaults set by AWS.
+   *
+   * @example
+   * ```js
+   * {
+   *   parameters: {
+   *     "maxmemory-policy": "noeviction"
+   *   }
+   * }
+   * ```
+   */
+  parameters?: Input<Record<string, Input<string>>>;
+  /**
    * The VPC to use for the Redis cluster.
    *
    * @example
@@ -475,12 +489,13 @@ Listening on "${dev.host}:${dev.port}"...`,
                 }[defaultFamily] ?? defaultFamily
               );
             }),
-            parameters: [
+            parameters: output(args.parameters ?? {}).apply((v) => [
               {
                 name: "cluster-enabled",
                 value: "yes",
               },
-            ],
+              ...Object.entries(v).map(([name, value]) => ({ name, value })),
+            ]),
           },
           { parent: self },
         ),
