@@ -109,7 +109,7 @@ func (p *Project) RunNext(ctx context.Context, input *StackInput) error {
 			cmd.Dir = workdir.path
 			cmd.Env = os.Environ()
 			cmd.Env = append(cmd.Env,
-				"PULUMI_BACKEND_URL=file://"+workdir.Backend(),
+				"PULUMI_BACKEND_URL="+filepath.ToSlash("file://"+workdir.Backend()),
 				"PULUMI_CONFIG_PASSPHRASE="+passphrase,
 			)
 			err := cmd.Run()
@@ -161,7 +161,7 @@ func (p *Project) RunNext(ctx context.Context, input *StackInput) error {
 	for _, entry := range p.lock {
 		providerShim = append(providerShim, fmt.Sprintf("import * as %s from \"%s\";", entry.Alias, entry.Package))
 	}
-	providerShim = append(providerShim, fmt.Sprintf("import * as sst from \"%s\";", path.Join(p.PathPlatformDir(), "src/components")))
+	providerShim = append(providerShim, fmt.Sprintf("import * as sst from \"%s\";", path.Join(filepath.ToSlash(p.PathPlatformDir()), "src/components")))
 
 	buildResult, err := js.Build(js.EvalOptions{
 		Dir:     p.PathRoot(),
@@ -171,7 +171,7 @@ func (p *Project) RunNext(ctx context.Context, input *StackInput) error {
 			"$cli": string(cliBytes),
 			"$dev": fmt.Sprintf("%v", input.Dev),
 		},
-		Inject:  []string{filepath.Join(p.PathWorkingDir(), "platform/src/shim/run.js")},
+		Inject:  []string{filepath.ToSlash(filepath.Join(p.PathWorkingDir(), "platform/src/shim/run.js"))},
 		Globals: strings.Join(providerShim, "\n"),
 		Code: fmt.Sprintf(`
       import { run } from "%v";
@@ -179,8 +179,8 @@ func (p *Project) RunNext(ctx context.Context, input *StackInput) error {
       const result = await run(mod.run);
       export default result;
     `,
-			path.Join(p.PathWorkingDir(), "platform/src/auto/run.ts"),
-			p.PathRoot(),
+			filepath.ToSlash(path.Join(p.PathWorkingDir(), "platform/src/auto/run.ts")),
+			filepath.ToSlash(p.PathRoot()),
 		),
 	})
 	if err != nil {
@@ -259,7 +259,7 @@ func (p *Project) RunNext(ctx context.Context, input *StackInput) error {
 	env = append(env,
 		"PULUMI_CONFIG_PASSPHRASE="+passphrase,
 		"PULUMI_SKIP_UPDATE_CHECK=true",
-		"PULUMI_BACKEND_URL=file://"+workdir.Backend(),
+		"PULUMI_BACKEND_URL=file://"+filepath.ToSlash(workdir.Backend()),
 		"PULUMI_DEBUG_COMMANDS=true",
 		// "PULUMI_DISABLE_AUTOMATIC_PLUGIN_ACQUISITION=true",
 		"NODE_OPTIONS=--enable-source-maps --no-deprecation",
