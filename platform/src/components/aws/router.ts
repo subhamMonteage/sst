@@ -1419,6 +1419,16 @@ async function handler(event) {
     try {
       const v = await cf.kvs().get(routerNS + ":routes");
       routes = JSON.parse(v);
+
+      // handle chunked routes
+      if (routes.parts) {
+        const chunkPromises = [];
+        for (let i = 0; i < routes.parts; i++) {
+          chunkPromises.push(cf.kvs().get(routerNS + ":routes:" + i));
+        }
+        const chunks = await Promise.all(chunkPromises);
+        routes = JSON.parse(chunks.join(""));
+      }
     } catch (e) {}
     return routes;
   }
