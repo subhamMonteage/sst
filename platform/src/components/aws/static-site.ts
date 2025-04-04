@@ -31,13 +31,13 @@ import {
   CF_ROUTER_GLOBAL_INJECTION,
   CF_SITE_ROUTER_INJECTION,
   KV_SITE_METADATA,
-  Router,
+  normalizeRouteArgs,
+  RouterRouteArgs,
 } from "./router.js";
 import { readDirRecursivelySync } from "../../util/fs.js";
 import { DistributionInvalidation } from "./providers/distribution-invalidation.js";
 import { VisibleError } from "../error.js";
 import { KvRoutesUpdate } from "./providers/kv-routes-update.js";
-import { SiteRouteArgs } from "./helpers/site-builder.js";
 
 export interface StaticSiteArgs extends BaseStaticSiteArgs {
   /**
@@ -461,7 +461,7 @@ export interface StaticSiteArgs extends BaseStaticSiteArgs {
    * static site generator as well.
    * :::
    */
-  route?: Prettify<SiteRouteArgs>;
+  route?: Prettify<RouterRouteArgs>;
   /**
    * Configure how the CloudFront cache invalidations are handled. This is run after your static site has been deployed.
    * :::tip
@@ -791,37 +791,21 @@ export class StaticSite extends Component implements Link.Linkable {
     }
 
     function normalizeRoute() {
-      if (!args.route) return undefined;
+      const route = normalizeRouteArgs(args.route);
 
-      if (args.domain)
-        throw new VisibleError(`Cannot provide both "domain" and "route".`);
+      if (route) {
+        if (args.domain)
+          throw new VisibleError(
+            `Cannot provide both "domain" and "route". Use the "domain" prop on the "Router" component when serving your site through a Router.`,
+          );
 
-      return output(args.route).apply((v) => {
-        return v.router._hasInlineRoutes.apply((hasInlineRoutes) => {
-          if (hasInlineRoutes)
-            throw new VisibleError(
-              "Cannot route the site using the provided router. The Router component uses inline routes which has been deprecated.",
-            );
+        if (args.edge)
+          throw new VisibleError(
+            `Cannot provide both "edge" and "route". Use the "edge" prop on the "Router" component when serving your site through a Router.`,
+          );
+      }
 
-          const pathPrefix = v.path
-            ? "/" + v.path.replace(/^\//, "").replace(/\/$/, "")
-            : undefined;
-          return {
-            hostPattern: v.domain
-              ? v.domain
-                  .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // Escape special regex chars
-                  .replace(/\*/g, ".*") // Replace * with .*
-              : undefined,
-            pathPrefix,
-            routerDistributionId: v.router.nodes.cdn.nodes.distribution.id,
-            routerUrl: v.router.url.apply((url) =>
-              path.join(v.domain ?? url, pathPrefix ?? ""),
-            ),
-            routerKvNamespace: v.router._kvNamespace!,
-            routerKvStoreArn: v.router._kvStoreArn!,
-          };
-        });
-      });
+      return route;
     }
 
     function normalizeDev() {

@@ -38,13 +38,13 @@ import {
   CF_ROUTER_GLOBAL_INJECTION,
   CF_SITE_ROUTER_INJECTION,
   CF_BLOCK_CLOUDFRONT_URL_INJECTION,
-  Router,
   KV_SITE_METADATA,
+  RouterRouteArgs,
+  normalizeRouteArgs,
 } from "./router.js";
 import { DistributionInvalidation } from "./providers/distribution-invalidation.js";
 import { toSeconds } from "../duration.js";
 import { KvRoutesUpdate } from "./providers/kv-routes-update.js";
-import { SiteRouteArgs } from "./helpers/site-builder.js";
 
 const supportedRegions = {
   "af-south-1": { lat: -33.9249, lon: 18.4241 }, // Cape Town, South Africa
@@ -113,7 +113,7 @@ export type Plan = {
 
 export interface SsrSiteArgs extends BaseSsrSiteArgs {
   domain?: CdnArgs["domain"];
-  route?: Prettify<SiteRouteArgs>;
+  route?: Prettify<RouterRouteArgs>;
   cachePolicy?: Input<string>;
   invalidation?: Input<
     | false
@@ -842,49 +842,21 @@ async function handler(event) {
     }
 
     function normalizeRoute() {
-      if (!args.route) return undefined;
+      const route = normalizeRouteArgs(args.route);
 
-      if (args.domain)
-        throw new VisibleError(`Cannot provide both "domain" and "route".`);
+      if (route) {
+        if (args.domain)
+          throw new VisibleError(
+            `Cannot provide both "domain" and "route". Use the "domain" prop on the "Router" component when serving your site through a Router.`,
+          );
 
-      return output(args.route).apply((v) => {
-        return v.router._hasInlineRoutes.apply((hasInlineRoutes) => {
-          if (hasInlineRoutes)
-            throw new VisibleError(
-              "Cannot route the site using the provided router. The Router component uses inline routes which has been deprecated.",
-            );
+        if (args.edge)
+          throw new VisibleError(
+            `Cannot provide both "edge" and "route". Use the "edge" prop on the "Router" component when serving your site through a Router.`,
+          );
+      }
 
-          const pathPrefix = v.path
-            ? "/" + v.path.replace(/^\//, "").replace(/\/$/, "")
-            : undefined;
-
-          if (
-            // @ts-ignore
-            self.__pulumiType === "sst:aws:TanstackStart" &&
-            pathPrefix &&
-            pathPrefix !== "/"
-          ) {
-            throw new VisibleError(
-              `TanStack Start can only be routed from the root "/" and does not currently support base paths. Follow this thread on TanStack Discord to track progress: https://discord.com/channels/719702312431386674/1351676051964690452`,
-            );
-          }
-
-          return {
-            hostPattern: v.domain
-              ? v.domain
-                  .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // Escape special regex chars
-                  .replace(/\*/g, ".*") // Replace * with .*
-              : undefined,
-            pathPrefix,
-            routerDistributionId: v.router.nodes.cdn.nodes.distribution.id,
-            routerUrl: v.router.url.apply((url) =>
-              path.join(v.domain ?? url, pathPrefix ?? ""),
-            ),
-            routerKvNamespace: v.router._kvNamespace!,
-            routerKvStoreArn: v.router._kvStoreArn!,
-          };
-        });
-      });
+      return route;
     }
 
     function normalizeEdge() {

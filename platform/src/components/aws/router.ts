@@ -18,6 +18,7 @@ import { VisibleError } from "../error";
 import { RouterUrlRoute } from "./router-url-route";
 import { RouterBucketRoute } from "./router-bucket-route";
 import { DurationSeconds } from "../duration";
+import path from "path";
 
 interface InlineUrlRouteArgs extends InlineBaseRouteArgs {
   /**
@@ -2085,3 +2086,98 @@ export type KV_SITE_METADATA = {
     };
   };
 };
+
+export type RouterRouteArgs = {
+  /**
+   * The `Router` component to use to route requests.
+   *
+   * @example
+   *
+   * Let's say you have a Router component.
+   *
+   * ```ts title="sst.config.ts"
+   * const router = new sst.aws.Router("MyRouter", {
+   *   domain: "example.com",
+   * });
+   * ```
+   *
+   * Attach to the Router to receive requests.
+   *
+   * ```ts title="sst.config.ts"
+   * route: {
+   *   router,
+   * }
+   * ```
+   */
+  router: Input<Router>;
+  /**
+   * Route requests matching specific domain pattern.
+   *
+   * @example
+   *
+   * You can serve your resource from a subdomain. For example, if you want to make
+   * it available at `https://dev.example.com`, set the `Router` domain to a wildcard.
+   *
+   * ```ts {2} title="sst.config.ts"
+   * const router = new sst.aws.Router("MyRouter", {
+   *   domain: "*.example.com",
+   * });
+   * ```
+   *
+   * Then set the domain pattern.
+   *
+   * ```ts {3} title="sst.config.ts"
+   * route: {
+   *   router,
+   *   domain: "dev.example.com",
+   * }
+   * ```
+   */
+  domain?: Input<string>;
+  /**
+   * Route request smatching specific path prefix.
+   *
+   * @default `"/"`
+   * @example
+   *
+   * ```ts {3} title="sst.config.ts"
+   * route: {
+   *   router,
+   *   path: "/docs",
+   * }
+   * ```
+   */
+  path?: Input<string>;
+};
+
+export function normalizeRouteArgs(route?: Input<RouterRouteArgs>) {
+  if (!route) return undefined;
+
+  return output(route).apply((v) => {
+    return v.router._hasInlineRoutes.apply((hasInlineRoutes) => {
+      if (hasInlineRoutes)
+        throw new VisibleError(
+          "Cannot route the site using the provided router. The Router component uses inline routes which has been deprecated.",
+        );
+
+      const pathPrefix = v.path
+        ? "/" + v.path.replace(/^\//, "").replace(/\/$/, "")
+        : undefined;
+      return {
+        hostPattern: v.domain
+          ? v.domain
+              .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // Escape special regex chars
+              .replace(/\*/g, ".*") // Replace * with .*
+          : undefined,
+        pathPrefix,
+        routerDistributionId: v.router.nodes.cdn.nodes.distribution.id,
+        routerUrl: v.router.url.apply(
+          (url) =>
+            (v.domain ? `https://${v.domain}` : url) + (pathPrefix ?? ""),
+        ),
+        routerKvNamespace: v.router._kvNamespace!,
+        routerKvStoreArn: v.router._kvStoreArn!,
+      };
+    });
+  });
+}

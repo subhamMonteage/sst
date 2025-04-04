@@ -44,6 +44,9 @@ import { lazy } from "../../util/lazy.js";
 import { Efs } from "./efs.js";
 import { FunctionEnvironmentUpdate } from "./providers/function-environment-update.js";
 import { warnOnce } from "../../util/warn.js";
+import { normalizeRouteArgs, RouterRouteArgs } from "./router.js";
+import { KvRoutesUpdate } from "./providers/kv-routes-update.js";
+import { KvKeys } from "./providers/kv-keys.js";
 
 /**
  * Helper type to define function ARN type
@@ -698,6 +701,7 @@ export interface FunctionArgs {
   url?: Input<
     | boolean
     | {
+        route?: Prettify<RouterRouteArgs>;
         /**
          * The authorization used for the function URL. Supports [IAM authorization](https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html).
          * @default `"none"`
@@ -1384,8 +1388,7 @@ export class Function extends Component implements Link.Linkable {
   private function: Output<lambda.Function>;
   private role: iam.Role;
   private logGroup: Output<cloudwatch.LogGroup | undefined>;
-  private fnUrl: Output<lambda.FunctionUrl | undefined>;
-  private missingSourcemap?: boolean;
+  private urlEndpoint: Output<string | undefined>;
 
   private static readonly encryptionKey = lazy(
     () =>
@@ -1438,7 +1441,7 @@ export class Function extends Component implements Link.Linkable {
     const logGroup = createLogGroup();
     const zipAsset = createZipAsset();
     const fn = createFunction();
-    const fnUrl = createUrl();
+    const urlEndpoint = createUrl();
     createProvisioned();
 
     const links = linkData.apply((input) => input.map((item) => item.name));
@@ -1446,7 +1449,7 @@ export class Function extends Component implements Link.Linkable {
     this.function = fn;
     this.role = role;
     this.logGroup = logGroup;
-    this.fnUrl = fnUrl;
+    this.urlEndpoint = urlEndpoint;
 
     const buildInput = output({
       functionID: name,
@@ -1505,9 +1508,7 @@ export class Function extends Component implements Link.Linkable {
         internal: args._skipMetadata,
         dev: dev,
       },
-      _hint: args._skipHint
-        ? undefined
-        : fnUrl.apply((fnUrl) => fnUrl?.functionUrl),
+      _hint: args._skipHint ? undefined : urlEndpoint,
     });
 
     function normalizeDev() {
@@ -1629,7 +1630,7 @@ export class Function extends Component implements Link.Linkable {
                   maxAge: url.cors.maxAge && toSeconds(url.cors.maxAge),
                 };
 
-        return { authorization, cors };
+        return { authorization, cors, route: normalizeRouteArgs(url.route) };
       });
     }
 
@@ -2257,9 +2258,10 @@ export class Function extends Component implements Link.Linkable {
 
     function createUrl() {
       return url.apply((url) => {
-        if (url === undefined) return;
+        if (url === undefined) return output(undefined);
 
-        return new lambda.FunctionUrl(
+        // create the function url
+        const fnUrl = new lambda.FunctionUrl(
           `${name}Url`,
           {
             functionName: fn.name,
@@ -2271,6 +2273,43 @@ export class Function extends Component implements Link.Linkable {
           },
           { parent },
         );
+        if (!url.route) return fnUrl.functionUrl;
+
+        // add router route
+        const routeNamespace = crypto
+          .createHash("md5")
+          .update(`${$app.name}-${$app.stage}-${name}`)
+          .digest("hex")
+          .substring(0, 4);
+        new KvKeys(
+          `${name}RouteKey`,
+          {
+            store: url.route.routerKvStoreArn,
+            namespace: routeNamespace,
+            entries: fnUrl.functionUrl.apply((fnUrl) => ({
+              metadata: JSON.stringify({
+                host: new URL(fnUrl).host,
+              }),
+            })),
+            purge: false,
+          },
+          { parent },
+        );
+        new KvRoutesUpdate(
+          `${name}RoutesUpdate`,
+          {
+            store: url.route.routerKvStoreArn,
+            namespace: url.route.routerKvNamespace,
+            key: "routes",
+            entry: url.route.apply((route) =>
+              ["url", routeNamespace, route.hostPattern, route.pathPrefix].join(
+                ",",
+              ),
+            ),
+          },
+          { parent },
+        );
+        return url.route.routerUrl;
       });
     }
 
@@ -2325,13 +2364,13 @@ export class Function extends Component implements Link.Linkable {
    * The Lambda function URL if `url` is enabled.
    */
   public get url() {
-    return this.fnUrl.apply((url) => {
+    return this.urlEndpoint.apply((url) => {
       if (!url) {
         throw new VisibleError(
           `Function URL is not enabled. Enable it with "url: true".`,
         );
       }
-      return url.functionUrl;
+      return url;
     });
   }
 
@@ -2430,7 +2469,7 @@ export class Function extends Component implements Link.Linkable {
     return {
       properties: {
         name: this.name,
-        url: this.fnUrl.apply((url) => url?.functionUrl ?? output(undefined)),
+        url: this.urlEndpoint,
       },
       include: [
         permission({
