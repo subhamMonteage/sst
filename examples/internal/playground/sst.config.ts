@@ -21,8 +21,8 @@ export default $config({
     //const apiv1 = addApiV1();
     //const apiv2 = addApiV2();
     //const apiws = addApiWebsocket();
-    addSsrSite();
-    addStaticSite();
+    const ssrSite = addSsrSite();
+    const staticSite = addStaticSite();
     const router = addRouter();
     //const app = addFunction();
     //const cluster = addCluster();
@@ -229,10 +229,6 @@ export default $config({
       //  path: "sites/react-router-7-ssr",
       //  cdn: false,
       //});
-      //const astro5 = new sst.aws.Astro("MyRouterAstroSite", {
-      //  path: "sites/astro5",
-      //  cdn: false,
-      //});
       //const solid = new sst.aws.SolidStart("MyRouterSolidSite", {
       //  path: "sites/solid-start",
       //  link: [bucket],
@@ -243,13 +239,6 @@ export default $config({
       //  link: [bucket],
       //  cdn: false,
       //});
-      //const tanstackStart = new sst.aws.TanStackStart(
-      //  "MyRouterTanStackStartSite",
-      //  {
-      //    path: "sites/tanstack-start",
-      //    cdn: false,
-      //  }
-      //);
       //const svelte = new sst.aws.SvelteKit("MyRouterSvelteSite", {
       //  path: "sites/svelte-kit",
       //  link: [bucket],
@@ -263,23 +252,6 @@ export default $config({
       //const remix = new sst.aws.Remix("MyRouterRemixSite", {
       //  path: "sites/remix",
       //  link: [bucket],
-      //  cdn: false,
-      //});
-      //const nextjs = new sst.aws.Nextjs("MyRouterNextSite", {
-      //  path: "sites/nextjs",
-      //  link: [bucket],
-      //  cdn: false,
-      //  server: {
-      //    timeout: "50 seconds",
-      //  },
-      //});
-      //const vite = new sst.aws.StaticSite("Web", {
-      //  path: "sites/vite",
-      //  build: {
-      //    command: "npm run build",
-      //    output: "dist",
-      //  },
-      //  base: "/vite",
       //  cdn: false,
       //});
 
@@ -309,14 +281,53 @@ export default $config({
       //router.routeSite("/analog", analog);
       //router.routeSite("/remix", remix);
       //router.routeSite("/vite", vite);
-      //router.routeSite("/", nextjs);
+      //router.routeSite("/tan", staticSite);
+
+      //const vite = new sst.aws.StaticSite("MyRouterVite", {
+      //  path: "sites/vite",
+      //  route: {
+      //    router,
+      //    path: "/vite",
+      //  },
+      //  build: {
+      //    command: "npm run build",
+      //    output: "dist",
+      //  },
+      //});
+
+      //new sst.aws.Nextjs("MyRouterNextjs", {
+      //  route: {
+      //    router,
+      //    path: "/next",
+      //  },
+      //  path: "sites/nextjs",
+      //  link: [bucket],
+      //  server: {
+      //    timeout: "50 seconds",
+      //  },
+      //});
+
+      //new sst.aws.Astro("MyRouterAstro", {
+      //  path: "sites/astro5",
+      //  route: {
+      //    router,
+      //    path: "/astro5",
+      //  },
+      //});
+
+      //const tanstackStart = new sst.aws.TanStackStart("MyRouterTanStack", {
+      //  path: "sites/tanstack-start",
+      //  route: {
+      //    router,
+      //  },
+      //});
 
       return router;
     }
 
     function addSsrSite() {
-      new sst.aws.Nextjs("MyNextjsSite", {
-        //domain: "ssr.playground.sst.sh",
+      return new sst.aws.Nextjs("MyNextjsSite", {
+        domain: "ssr.playground.sst.sh",
         path: "sites/nextjs",
         //path: "sites/astro4",
         //path: "sites/astro5",
@@ -336,6 +347,7 @@ export default $config({
 
     function addStaticSite() {
       new sst.aws.StaticSite("MyStaticSite", {
+        domain: "static.playground.sst.sh",
         path: "sites/vite",
         build: {
           command: "npm run build",
