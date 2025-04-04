@@ -198,6 +198,38 @@ export interface TanStackStartArgs extends SsrSiteArgs {
    */
   domain?: SsrSiteArgs["domain"];
   /**
+   * Serve your TanStack Start app through a `Router` component instead of a standalone CloudFront
+   * distribution.
+   *
+   * Let's say you have a Router component with a wildcard domain.
+   *
+   * ```ts title="sst.config.ts"
+   * const router = new sst.aws.Router("Router", {
+   *   domain: "*.example.com",
+   * });
+   * ```
+   *
+   * You can then match a pattern and route to your app based on:
+   *
+   * - A domain pattern like `docs.example.com`
+   *
+   * For example, to match a domain.
+   *
+   * ```ts title="sst.config.ts"
+   * {
+   *   route: {
+   *     router,
+   *     domain: "docs.example.com",
+   *   },
+   * }
+   * ```
+   *
+   * :::caution
+   * TanStack Start can only be routed from the root "/" and does not currently support base paths.
+   * :::
+   */
+  route?: SsrSiteArgs["route"];
+  /**
    * The command used internally to build your TanStack Start app.
    *
    * @default `"npm run build"`

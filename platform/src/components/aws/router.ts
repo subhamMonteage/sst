@@ -17,9 +17,6 @@ import { OriginAccessControl } from "./providers/origin-access-control";
 import { VisibleError } from "../error";
 import { RouterUrlRoute } from "./router-url-route";
 import { RouterBucketRoute } from "./router-bucket-route";
-import { RouterSiteRoute } from "./router-site-route";
-import { SsrSite } from "./ssr-site";
-import { StaticSite } from "./static-site";
 import { DurationSeconds } from "../duration";
 
 interface InlineUrlRouteArgs extends InlineBaseRouteArgs {
@@ -507,8 +504,8 @@ export interface RouterArgs {
   /**
    * A map of routes to their destinations.
    *
-   * @deprecated Use the `route`, `routeBucket`, and `routeSite` functions instead. These
-   * functions provide a more flexible API for routing to URLs, buckets, and sites. They
+   * @deprecated Use the `route` and `routeBucket` functions instead. These
+   * functions provide a more flexible API for routing to URLs and buckets. They
    * also allow routing based on both domain and path patterns.
    *
    * The _key_ is the route path and the _value_ can be:
@@ -900,164 +897,33 @@ interface RouterRef {
  *
  * #### Route to a frontend
  *
- * ```ts title="sst.config.ts" "cdn: false"
- * const site = new sst.aws.Nextjs("Site", { cdn: false });
- *
+ * ```ts title="sst.config.ts"
  * const router = new sst.aws.Router("MyRouter");
- * router.routeSite("/*", site);
- * ```
  *
- * We are disabling the built-in CDN of the Next.js app because we want to use the
- * router to serve the app.
+ * new sst.aws.Nextjs("Site", {
+ *   route: {
+ *     router,
+ *   },
+ * });
+ * ```
  *
  * #### Route to a frontend on a subpath
  *
- * To serve your frontend from a subpath, you need to:
+ * ```ts title="sst.config.ts"
+ * const router = new sst.aws.Router("MyRouter");
  *
- * 1. Configure the base path in your frontend framework.
+ * new sst.aws.Nextjs("Site", {
+ *   route: {
+ *     router,
+ *     path: "/docs"
+ *   },
+ * });
+ * ```
  *
- *    <Tabs>
- *      <TabItem label="Next.js">
- *      Set the [`basePath`](https://nextjs.org/docs/app/api-reference/config/next-config-js/basePath) in your `next.config.js`.
- *
- *      ```js {2} title="next.config.js"
- *      export default defineConfig({
- *        basePath: "/docs"
- *      });
- *      ```
- *      </TabItem>
- *      <TabItem label="Astro">
- *      Set the `base` option in your `astro.config.mjs`.
- *
- *      ```js {3} title="astro.config.mjs"
- *      export default defineConfig({
- *        adapter: sst(),
- *        base: "/docs"
- *      });
- *      ```
- *      </TabItem>
- *      <TabItem label="Remix">
- *      Set the `base` option in your `vite.config.ts` with the trailing slash.
- *
- *      ```js {3} title="vite.config.ts"
- *      export default defineConfig({
- *        plugins: [...],
- *        base: "/docs/"
- *      });
- *      ```
- *      </TabItem>
- *      <TabItem label="SvelteKit">
- *      Set the `base` option in your `svelte.config.js` without the trailing slash.
- *
- *      ```js {4} title="svelte.config.js"
- *      export default defineConfig({
- *        kit: {
- *          paths: {
- *            base: "/docs"
- *          }
- *        }
- *      });
- *      ```
- *      </TabItem>
- *      <TabItem label="React">
- *      Set the `base` option in your `vite.config.ts` with the trailing slash.
- *
- *      ```js {3} title="vite.config.ts"
- *      export default defineConfig({
- *        plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
- *        base: "/docs/"
- *      });
- *      ```
- *      </TabItem>
- *      <TabItem label="Nuxt">
- *      Set the `baseURL` option in your `nuxt.config.ts` without a trailing slash.
- *
- *      ```js {3} title="nuxt.config.ts"
- *      export default defineConfig({
- *        app: {
- *          baseURL: "/docs"
- *        }
- *      });
- *      ```
- *      </TabItem>
- *      <TabItem label="SolidStart">
- *      Set the `baseURL` option in your `app.config.ts` without a trailing slash.
- *
- *      ```js {3} title="app.config.ts"
- *      export default defineConfig({
- *        server: {
- *          baseURL: "/docs"
- *        }
- *      });
- *      ```
- *      </TabItem>
- *      <TabItem label="Analog">
- *      Set the `base` and `apiPrefix` options in your `vite.config.ts`. The `apiPrefix` value should not begin with a slash.
- *
- *      ```js {4,7} title="vite.config.ts"
- *      export default defineConfig(({ mode }) => ({
- *        plugins: [
- *          analog({
- *            apiPrefix: "docs/api"
- *          })
- *        ],
- *        base: "/docs"
- *      }));
- *      ```
- *      </TabItem>
- *    </Tabs>
- *
- * 2. Disable the built-in CDN of the frontend.
- *
- *    <Tabs>
- *      <TabItem label="Next.js">
- *      ```ts title="sst.config.ts" "cdn: false"
- *      const site = new sst.aws.Nextjs("Site", { cdn: false });
- *      ```
- *      </TabItem>
- *      <TabItem label="Astro">
- *      ```ts title="sst.config.ts" "cdn: false"
- *      const site = new sst.aws.Astro("Site", { cdn: false });
- *      ```
- *      </TabItem>
- *      <TabItem label="Remix">
- *      ```ts title="sst.config.ts" "cdn: false"
- *      const site = new sst.aws.Remix("Site", { cdn: false });
- *      ```
- *      </TabItem>
- *      <TabItem label="SvelteKit">
- *      ```ts title="sst.config.ts" "cdn: false"
- *      const site = new sst.aws.SvelteKit("Site", { cdn: false });
- *      ```
- *      </TabItem>
- *      <TabItem label="React">
- *      ```ts title="sst.config.ts" "cdn: false"
- *      const site = new sst.aws.React("Site", { cdn: false });
- *      ```
- *      </TabItem>
- *      <TabItem label="Nuxt">
- *      ```ts title="sst.config.ts" "cdn: false"
- *      const site = new sst.aws.Nuxt("Site", { cdn: false });
- *      ```
- *      </TabItem>
- *      <TabItem label="SolidStart">
- *      ```ts title="sst.config.ts" "cdn: false"
- *      const site = new sst.aws.SolidStart("Site", { cdn: false });
- *      ```
- *      </TabItem>
- *      <TabItem label="Analog">
- *      ```ts title="sst.config.ts" "cdn: false"
- *      const site = new sst.aws.Analog("Site", { cdn: false });
- *      ```
- *      </TabItem>
- *    </Tabs>
- *
- * 3. Add the site to a Router.
- *
- *    ```ts title="sst.config.ts"
- *    const router = new sst.aws.Router("MyRouter");
- *    router.routeSite("/docs", site);
- *    ```
+ * :::caution
+ * If routing to a path, you need to configure that as the base path in your
+ * frontend app as well.
+ * :::
  */
 export class Router extends Component implements Link.Linkable {
   private constructorName: string;
@@ -1065,7 +931,7 @@ export class Router extends Component implements Link.Linkable {
   private cdn: Output<Cdn>;
   private kvStoreArn?: Output<string>;
   private kvNamespace?: Output<string>;
-  private hasInlineRoutes?: Output<boolean>;
+  private hasInlineRoutes: Output<boolean>;
 
   constructor(
     name: string,
@@ -1724,6 +1590,21 @@ async function handler(event) {
     );
   }
 
+  /** @internal */
+  public get _kvStoreArn() {
+    return this.kvStoreArn;
+  }
+
+  /** @internal */
+  public get _kvNamespace() {
+    return this.kvNamespace;
+  }
+
+  /** @internal */
+  public get _hasInlineRoutes() {
+    return this.hasInlineRoutes;
+  }
+
   /**
    * The underlying [resources](/docs/components/#nodes) this component creates.
    */
@@ -1898,78 +1779,13 @@ async function handler(event) {
    * @param pattern The path pattern to match for this route.
    * @param site The frontend or static site to route matching requests to.
    *
-   * @example
-   *
-   * You can add routes to a frontend (like Next.js, Remix, SvelteKit) or a static
-   * site.
-   *
-   * Let's say you have a Next.js app with its built-in CDN disabled.
-   *
-   * ```ts title="sst.config.ts" "cdn: false"
-   * const site = new sst.aws.Nextjs("Site", { cdn: false });
-   * ```
-   *
-   * You can then match a pattern and route to it based on:
-   *
-   * - A path like `/docs`
-   * - A domain pattern like `docs.example.com`
-   * - A combined pattern like `dev.example.com/docs`
-   *
-   * For example, to match a path.
-   *
-   * ```ts title="sst.config.ts"
-   * router.routeSite("/docs", site);
-   * ```
-   *
-   * Or match a domain.
-   *
-   * ```ts title="sst.config.ts"
-   * router.routeSite("docs.example.com/", site);
-   * ```
-   *
-   * Route by both domain and path:
-   *
-   * ```ts title="sst.config.ts"
-   * router.routeSite("dev.example.com/docs", site);
-   * ```
-   *
-   * If you are routing to a path like `/docs`, you must configure the
-   * base path in your frontend's config. The base path must match the path in your
-   * route pattern.
-   *
-   * :::caution
-   * If routing to a path, you need to configure that as the base path in your
-   * frontend as well.
-   * :::
-   *
-   * For example, if you are routing `/docs` to a Next.js app, you need to set
-   * `basePath` to `/docs` in your `next.config.js`.
-   *
-   * ```js title="next.config.js" {2}
-   * export default defineConfig({
-   *   basePath: "/docs"
-   * });
-   * ```
+   * @deprecated The `routeSite` function has been deprecated. Set the `route` on the
+   * site components to route the site through this Router.
    */
-  public routeSite(pattern: Input<string>, site: Input<SsrSite | StaticSite>) {
-    all([pattern, this.hasInlineRoutes]).apply(([pattern, hasInlineRoutes]) => {
-      if (hasInlineRoutes)
-        throw new VisibleError(
-          "Cannot use both `routes` and `.routeSite()` function to add routes.",
-        );
-
-      new RouterSiteRoute(
-        `${this.constructorName}Route${pattern}`,
-        {
-          store: this.kvStoreArn!,
-          routerNamespace: this.kvNamespace!,
-          pattern,
-          site,
-          distributionId: this.distributionID,
-        },
-        { provider: this.constructorOpts.provider },
-      );
-    });
+  public routeSite(pattern: Input<string>, site: any) {
+    throw new VisibleError(
+      `The "routeSite" function has been deprecated. Configure the new "route" prop on the site component to route the site through this Router.`,
+    );
   }
 
   /** @internal */
@@ -2249,3 +2065,23 @@ async function routeSite(kvNamespace, metadata) {
     return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 }`;
+
+export type KV_SITE_METADATA = {
+  base?: string; // Should be undefiend if no base path, should never be "/"
+  custom404?: string;
+  s3: {
+    domain: string;
+    dir: string; // Should be "" if no dir
+    routes?: string[];
+  };
+  image?: {
+    host: string;
+    path: string;
+  };
+  servers?: [string, number, number][];
+  origin?: {
+    timeouts: {
+      readTimeout: number;
+    };
+  };
+};
