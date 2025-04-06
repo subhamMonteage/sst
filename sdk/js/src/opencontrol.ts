@@ -128,6 +128,7 @@ export const tools = [
       return await instance[input.method](JSON.parse(input.params)).promise();
     },
   }),
+  /*
   tool({
     name: "aws_batch",
     description:
@@ -154,4 +155,5 @@ export const tools = [
       );
     },
   }),
+  */
 ];
