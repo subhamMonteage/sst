@@ -1410,7 +1410,7 @@ import cf from "cloudfront";
 async function handler(event) {
   ${userInjection}
   ${blockCloudfrontUrlInjection}
-  ${CF_SITE_ROUTER_INJECTION}
+  ${CF_ROUTER_INJECTION}
 
   const routerNS = "${kvNamespace}";
 
@@ -1480,16 +1480,11 @@ async function handler(event) {
     const rw = route.metadata.rewrite;
     event.request.uri = event.request.uri.replace(new RegExp(rw.regex), rw.to);
   }
-  if (route.type === "url") {
-    event.request.headers["x-forwarded-host"] = event.request.headers.host;
-    setUrlOrigin(route.metadata.host, route.metadata.origin);
-  }
+  if (route.type === "url") setUrlOrigin(route.metadata.host, route.metadata.origin);
   if (route.type === "bucket") setS3Origin(route.metadata.domain, route.metadata.origin);
   if (route.type === "site") await routeSite(route.routeNs, route.metadata);
   return event.request;
-}
-
-${CF_ROUTER_GLOBAL_INJECTION}`,
+}`,
             },
             { parent: self },
           );
@@ -1874,53 +1869,7 @@ if (event.request.headers.host.value.includes('cloudfront.net')) {
   };
 }`;
 
-export const CF_ROUTER_GLOBAL_INJECTION = `
-function setUrlOrigin(urlHost, override) {
-  const origin = {
-    domainName: urlHost,
-    customOriginConfig: {
-      port: 443,
-      protocol: "https",
-      sslProtocols: ["TLSv1.2"],
-    },
-    originAccessControlConfig: {
-      enabled: false,
-    }
-  };
-  override = override ?? {};
-  if (override.protocol === "http") {
-    delete origin.customOriginConfig;
-  }
-  if (override.connectionAttempts) {
-    origin.connectionAttempts = override.connectionAttempts;
-  }
-  if (override.timeouts) {
-    origin.timeouts = override.timeouts;
-  }
-  cf.updateRequestOrigin(origin);
-}
-
-function setS3Origin(s3Domain, override) {
-  const origin = {
-    domainName: s3Domain,
-    originAccessControlConfig: {
-      enabled: true,
-      signingBehavior: "always",
-      signingProtocol: "sigv4",
-      originType: "s3",
-    }
-  };
-  override = override ?? {};
-  if (override.connectionAttempts) {
-    origin.connectionAttempts = override.connectionAttempts;
-  }
-  if (override.timeouts) {
-    origin.timeouts = override.timeouts;
-  }
-  cf.updateRequestOrigin(origin);
-}`;
-
-export const CF_SITE_ROUTER_INJECTION = `
+export const CF_ROUTER_INJECTION = `
 async function routeSite(kvNamespace, metadata) {
   const baselessUri = metadata.base
     ? event.request.uri.replace(metadata.base, "")
@@ -2075,6 +2024,56 @@ async function routeSite(kvNamespace, metadata) {
     const a = Math.sin(dLat / 2) ** 2 + Math.cos(radLat1) * Math.cos(radLat2) * Math.sin(dLon / 2) ** 2;
     return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
+}
+
+function setUrlOrigin(urlHost, override) {
+  event.request.headers["x-forwarded-host"] = event.request.headers.host;
+  const origin = {
+    domainName: urlHost,
+    customOriginConfig: {
+      port: 443,
+      protocol: "https",
+      sslProtocols: ["TLSv1.2"],
+    },
+    originAccessControlConfig: {
+      enabled: false,
+    }
+  };
+  override = override ?? {};
+  if (override.protocol === "http") {
+    delete origin.customOriginConfig;
+  }
+  if (override.connectionAttempts) {
+    origin.connectionAttempts = override.connectionAttempts;
+  }
+  if (override.timeouts) {
+    origin.timeouts = override.timeouts;
+  }
+  cf.updateRequestOrigin(origin);
+}
+
+function setS3Origin(s3Domain, override) {
+  delete event.request.headers["Cookies"];
+  delete event.request.headers["cookies"];
+  delete event.request.cookies;
+
+  const origin = {
+    domainName: s3Domain,
+    originAccessControlConfig: {
+      enabled: true,
+      signingBehavior: "always",
+      signingProtocol: "sigv4",
+      originType: "s3",
+    }
+  };
+  override = override ?? {};
+  if (override.connectionAttempts) {
+    origin.connectionAttempts = override.connectionAttempts;
+  }
+  if (override.timeouts) {
+    origin.timeouts = override.timeouts;
+  }
+  cf.updateRequestOrigin(origin);
 }`;
 
 export type KV_SITE_METADATA = {

@@ -35,8 +35,7 @@ import { useProvider } from "./helpers/provider.js";
 import { Link } from "../link.js";
 import { URL_UNAVAILABLE } from "./linkable.js";
 import {
-  CF_ROUTER_GLOBAL_INJECTION,
-  CF_SITE_ROUTER_INJECTION,
+  CF_ROUTER_INJECTION,
   CF_BLOCK_CLOUDFRONT_URL_INJECTION,
   KV_SITE_METADATA,
   RouterRouteArgs,
@@ -639,7 +638,7 @@ import cf from "cloudfront";
 async function handler(event) {
   ${userInjection}
   ${blockCloudfrontUrlInjection}
-  ${CF_SITE_ROUTER_INJECTION}
+  ${CF_ROUTER_INJECTION}
 
   const kvNamespace = "${kvNamespace}";
 
@@ -652,9 +651,7 @@ async function handler(event) {
 
   await routeSite(kvNamespace, metadata);
   return event.request;
-}
-
-${CF_ROUTER_GLOBAL_INJECTION}`,
+}`,
           },
           { parent: self },
         );

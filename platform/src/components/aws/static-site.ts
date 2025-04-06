@@ -28,8 +28,7 @@ import { URL_UNAVAILABLE } from "./linkable.js";
 import { KvKeys } from "./providers/kv-keys.js";
 import {
   CF_BLOCK_CLOUDFRONT_URL_INJECTION,
-  CF_ROUTER_GLOBAL_INJECTION,
-  CF_SITE_ROUTER_INJECTION,
+  CF_ROUTER_INJECTION,
   KV_SITE_METADATA,
   normalizeRouteArgs,
   RouterRouteArgs,
@@ -1039,7 +1038,7 @@ import cf from "cloudfront";
 async function handler(event) {
   ${userInjection}
   ${blockCloudfrontUrlInjection}
-  ${CF_SITE_ROUTER_INJECTION}
+  ${CF_ROUTER_INJECTION}
 
   const kvNamespace = "${kvNamespace}";
 
@@ -1052,9 +1051,7 @@ async function handler(event) {
 
   await routeSite(kvNamespace, metadata);
   return event.request;
-}
-
-${CF_ROUTER_GLOBAL_INJECTION}`,
+}`,
           },
           { parent: self },
         );
