@@ -1875,19 +1875,7 @@ async function routeSite(kvNamespace, metadata) {
     ? event.request.uri.replace(metadata.base, "")
     : event.request.uri;
 
-  // Route to S3 asset routes
-  if (metadata.s3 && metadata.s3.routes) {
-    for (var i=0, l=metadata.s3.routes.length; i<l; i++) {
-      const route = metadata.s3.routes[i];
-      if (baselessUri.startsWith(route)) {
-        event.request.uri = metadata.s3.dir + baselessUri;
-        setS3Origin(metadata.s3.domain);
-        return;
-      }
-    }
-  }
-
-  // Route to S3
+  // Route to S3 files
   try {
     // check using baselessUri b/c files are stored in the root
     const u = decodeURIComponent(baselessUri);
@@ -1900,6 +1888,18 @@ async function routeSite(kvNamespace, metadata) {
     setS3Origin(metadata.s3.domain);
     return;
   } catch (e) {}
+
+  // Route to S3 routes
+  if (metadata.s3 && metadata.s3.routes) {
+    for (var i=0, l=metadata.s3.routes.length; i<l; i++) {
+      const route = metadata.s3.routes[i];
+      if (baselessUri.startsWith(route)) {
+        event.request.uri = metadata.s3.dir + baselessUri;
+        setS3Origin(metadata.s3.domain);
+        return;
+      }
+    }
+  }
 
   // Route to S3 custom 404 (no servers)
   if (metadata.custom404) {
