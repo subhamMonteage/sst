@@ -33,7 +33,6 @@ import {
   normalizeRouteArgs,
   RouterRouteArgs,
 } from "./router.js";
-import { readDirRecursivelySync } from "../../util/fs.js";
 import { DistributionInvalidation } from "./providers/distribution-invalidation.js";
 import { VisibleError } from "../error.js";
 import { KvRoutesUpdate } from "./providers/kv-routes-update.js";
@@ -849,7 +848,7 @@ export class StaticSite extends Component implements Link.Linkable {
                 (route) => "/" + route.replace(/^\//, "").replace(/\/$/, ""),
               ),
             )
-          : undefined,
+          : [],
       };
     }
 
@@ -956,17 +955,23 @@ export class StaticSite extends Component implements Link.Linkable {
     }
 
     function createKvEntries() {
-      const kvEntries = all([
+      const entries = all([
         outputPath,
         assets,
         bucketDomain,
         errorPage,
         route,
       ]).apply(async ([outputPath, assets, bucketDomain, errorPage, route]) => {
-        const files = readDirRecursivelySync(path.join(outputPath));
-        const kvEntries = Object.fromEntries(
-          files.map((file) => [path.posix.join("/", file), "s3"]),
-        );
+        const kvEntries: Record<string, string> = {};
+        const dirs: string[] = [];
+
+        fs.readdirSync(outputPath, { withFileTypes: true }).forEach((item) => {
+          if (item.isDirectory()) {
+            dirs.push(path.posix.join("/", item.name, "/"));
+            return;
+          }
+          kvEntries[path.posix.join("/", item.name)] = "s3";
+        });
 
         kvEntries["metadata"] = JSON.stringify({
           base: route?.pathPrefix === "/" ? undefined : route?.pathPrefix,
@@ -974,9 +979,10 @@ export class StaticSite extends Component implements Link.Linkable {
           s3: {
             domain: bucketDomain,
             dir: assets.path ? "/" + assets.path : "",
-            routes: assets.routes,
+            routes: [...assets.routes, ...dirs],
           },
         } satisfies KV_SITE_METADATA);
+
         return kvEntries;
       });
 
@@ -985,7 +991,7 @@ export class StaticSite extends Component implements Link.Linkable {
         {
           store: kvStoreArn!,
           namespace: kvNamespace,
-          entries: kvEntries,
+          entries,
           purge: assets.purge,
         },
         { parent: self },

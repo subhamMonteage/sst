@@ -699,6 +699,7 @@ export class Nextjs extends SsrSite {
                 to: "_assets",
                 cached: true,
                 versionedSubDir: "_next",
+                deepRoute: true,
               },
             ],
             isrCache: {

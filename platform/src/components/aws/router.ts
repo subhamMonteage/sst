@@ -2082,7 +2082,7 @@ export type KV_SITE_METADATA = {
   s3: {
     domain: string;
     dir: string; // Should be "" if no dir
-    routes?: string[];
+    routes: string[];
   };
   image?: {
     host: string;

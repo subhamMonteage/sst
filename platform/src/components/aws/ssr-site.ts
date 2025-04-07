@@ -29,7 +29,6 @@ import { Cron } from "./cron.js";
 import { BaseSiteFileOptions, getContentType } from "../base/base-site.js";
 import { BaseSsrSiteArgs, buildApp } from "../base/base-ssr-site.js";
 import { cloudfront, getRegionOutput, lambda, Region } from "@pulumi/aws";
-import { readDirRecursivelySync } from "../../util/fs.js";
 import { KvKeys } from "./providers/kv-keys.js";
 import { useProvider } from "./helpers/provider.js";
 import { Link } from "../link.js";
@@ -101,6 +100,7 @@ export type Plan = {
     to: string;
     cached: boolean;
     versionedSubDir?: string;
+    deepRoute?: boolean;
   }[];
   isrCache?: {
     from: string;
@@ -1217,7 +1217,7 @@ async function handler(event) {
     }
 
     function createKvEntries() {
-      const kvEntries = all([
+      const entries = all([
         servers,
         imageOptimizer,
         outputPath,
@@ -1230,20 +1230,48 @@ async function handler(event) {
             servers.map((s) => ({ region: s.region, url: s.server!.url })),
             imageOptimizer?.url,
           ]).apply(([servers, imageOptimizerUrl]) => {
-            const kvEntries = Object.fromEntries(
-              plan.assets.flatMap((copy) => {
-                const files = readDirRecursivelySync(
-                  path.join(outputPath, copy.from),
-                );
-                return files.map((file) => [path.posix.join("/", file), "s3"]);
-              }),
-            );
+            const kvEntries: Record<string, string> = {};
+            const dirs: string[] = [];
+
+            plan.assets.forEach((copy) => {
+              fs.readdirSync(path.join(outputPath, copy.from), {
+                withFileTypes: true,
+              }).forEach((item) => {
+                if (item.isFile()) {
+                  kvEntries[path.posix.join("/", item.name)] = "s3";
+                  return;
+                }
+
+                // Handle deep routes
+                // In Next.js, asset requests are prefixed with is /_next/static, and
+                // image optimization requests are prefixed with /_next/image. We cannot
+                // route by 1 level of subdirs (ie. /_next/`), so we need to route by 2
+                // levels of subdirs.
+                if (!copy.deepRoute) {
+                  dirs.push(path.posix.join("/", item.name, "/"));
+                  return;
+                }
+
+                fs.readdirSync(path.join(outputPath, copy.from, item.name), {
+                  withFileTypes: true,
+                }).forEach((subItem) => {
+                  if (subItem.isFile()) {
+                    kvEntries[path.posix.join("/", item.name, subItem.name)] =
+                      "s3";
+                    return;
+                  }
+                  dirs.push(path.posix.join("/", item.name, subItem.name, "/"));
+                });
+              });
+            });
+
             kvEntries["metadata"] = JSON.stringify({
               base: plan.base,
               custom404: plan.custom404,
               s3: {
                 domain: bucketDomain,
                 dir: plan.assets[0].to ? "/" + plan.assets[0].to : "",
+                routes: dirs,
               },
               image: imageOptimizerUrl
                 ? {
@@ -1271,7 +1299,7 @@ async function handler(event) {
         {
           store: kvStoreArn!,
           namespace: kvNamespace,
-          entries: kvEntries,
+          entries,
           purge,
         },
         { parent: self },
