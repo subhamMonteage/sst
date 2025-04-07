@@ -379,11 +379,15 @@ export class TanStackStart extends SsrSite {
 
       // If basepath is configured, nitro.mjs will have a line that looks like this:
       // return createRouter$2({ routeTree: Nr, defaultPreload: "intent", defaultErrorComponent: ce, defaultNotFoundComponent: () => jsx(de, {}), scrollRestoration: true, basepath: "/tan" });
-      const serverNitroChunk = fs.readFileSync(
-        path.join(serverOutputPath, "chunks", "nitro", "nitro.mjs"),
-        "utf-8",
-      );
-      const basepath = serverNitroChunk.match(/basepath: "(.*)"/)?.[1];
+      let basepath;
+      // TanStack Start currently doesn't support basepaths.
+      //try {
+      //  const serverNitroChunk = fs.readFileSync(
+      //    path.join(serverOutputPath, "chunks", "nitro", "nitro.mjs"),
+      //    "utf-8",
+      //  );
+      //  basepath = serverNitroChunk.match(/basepath: "(.*)"/)?.[1];
+      //} catch (e) {}
 
       return {
         base: basepath,
