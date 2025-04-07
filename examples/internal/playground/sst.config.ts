@@ -307,13 +307,13 @@ export default $config({
       //  },
       //});
 
-      //new sst.aws.Astro("MyRouterAstro", {
-      //  path: "sites/astro5",
-      //  route: {
-      //    router,
-      //    path: "/astro5",
-      //  },
-      //});
+      new sst.aws.Astro("MyRouterAstro", {
+        path: "sites/astro5",
+        route: {
+          router,
+          path: "/astro5",
+        },
+      });
 
       //const tanstackStart = new sst.aws.TanStackStart("MyRouterTanStack", {
       //  path: "sites/tanstack-start",
