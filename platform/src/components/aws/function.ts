@@ -701,6 +701,63 @@ export interface FunctionArgs {
   url?: Input<
     | boolean
     | {
+        /**
+         * Serve your function URL through a `Router` component.
+         *
+         * Let's say you have a Router component.
+         *
+         * ```ts title="sst.config.ts"
+         * const router = new sst.aws.Router("Router", {
+         *   domain: "*.example.com",
+         * });
+         * ```
+         *
+         * You can then match a pattern and route to your function based on:
+         *
+         * - A path like `/api/users`
+         * - A domain pattern like `api.example.com`
+         * - A combined pattern like `dev.example.com/api`
+         *
+         * For example, to match a path:
+         *
+         * ```ts title="sst.config.ts"
+         * {
+         *   url: {
+         *     route: {
+         *       router,
+         *       path: "/api/users",
+         *     },
+         *   },
+         * }
+         * ```
+         *
+         * Or match a domain:
+         *
+         * ```ts title="sst.config.ts"
+         * {
+         *   url: {
+         *     route: {
+         *       router,
+         *       domain: "api.example.com",
+         *     },
+         *   },
+         * }
+         * ```
+         *
+         * Route by both domain and path:
+         *
+         * ```ts title="sst.config.ts"
+         * {
+         *   url: {
+         *     route: {
+         *       router,
+         *       domain: "dev.example.com",
+         *       path: "/api/users",
+         *     },
+         *   },
+         * }
+         * ```
+         */
         route?: Prettify<RouterRouteArgs>;
         /**
          * The authorization used for the function URL. Supports [IAM authorization](https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html).

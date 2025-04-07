@@ -192,7 +192,7 @@ export interface NuxtArgs extends SsrSiteArgs {
    * Serve your Nuxt app through a `Router` component instead of a standalone CloudFront
    * distribution.
    *
-   * Let's say you have a Router component with a wildcard domain.
+   * Let's say you have a Router component.
    *
    * ```ts title="sst.config.ts"
    * const router = new sst.aws.Router("Router", {
