@@ -859,7 +859,7 @@ interface RouterRef {
  *
  * ```ts title="sst.config.ts"
  * const router = new sst.aws.Router("MyRouter");
- * router.route("/*", "https://some-external-service.com");
+ * router.route("/", "https://some-external-service.com");
  * ```
  *
  * #### Add a custom domain
@@ -880,7 +880,7 @@ interface RouterRef {
  *
  * const router = new sst.aws.Router("MyRouter", {
  * });
- * router.route("/*", myFunction.url);
+ * router.route("/", myFunction.url);
  * ```
  *
  * #### Route to a bucket
@@ -891,7 +891,7 @@ interface RouterRef {
  * });
  *
  * const router = new sst.aws.Router("MyRouter");
- * router.routeBucket("/files/*", myBucket);
+ * router.routeBucket("/files", myBucket);
  * ```
  *
  * Make sure to allow CloudFront access to the bucket by setting the `access` prop on the bucket.
