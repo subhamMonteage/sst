@@ -182,6 +182,30 @@ export default $config({
       },
     });
 
+    // Redirect docs.sst.dev to sst.dev/docs
+    new sst.aws.Router("DocsRouter", {
+      domain: "docs." + domain,
+      routes: {
+        "/*": {
+          url: `https://${domain}/docs`,
+          edge: {
+            viewerRequest: {
+              injection: `
+return {
+  statusCode: 301,
+  statusDescription: 'Moved Permanently',
+  headers: {
+    location: { value: "https://sst.dev/docs" }
+  }
+};
+              `,
+            },
+          },
+        },
+      },
+    });
+
+    // Redirect telemetry.ion.sst.dev to us.i.posthog.com
     new sst.aws.Router("TelemetryRouter", {
       domain: "telemetry.ion." + domain,
       routes: {
