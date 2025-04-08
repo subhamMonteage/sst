@@ -1276,7 +1276,7 @@ async function handler(event) {
               image: imageOptimizerUrl
                 ? {
                     host: new URL(imageOptimizerUrl!).host,
-                    path: plan.imageOptimizer!.prefix,
+                    route: plan.imageOptimizer!.prefix,
                   }
                 : undefined,
               servers: servers.map((s) => [

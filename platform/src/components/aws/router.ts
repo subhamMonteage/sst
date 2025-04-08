@@ -1909,7 +1909,7 @@ async function routeSite(kvNamespace, metadata) {
   }
 
   // Route to image optimizer
-  if (metadata.image && baselessUri.startsWith(metadata.image.pattern)) {
+  if (metadata.image && baselessUri.startsWith(metadata.image.route)) {
     setUrlOrigin(metadata.image.host);
     return;
   }
@@ -2086,7 +2086,7 @@ export type KV_SITE_METADATA = {
   };
   image?: {
     host: string;
-    path: string;
+    route: string;
   };
   servers?: [string, number, number][];
   origin?: {
