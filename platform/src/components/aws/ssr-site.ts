@@ -1260,7 +1260,7 @@ async function handler(event) {
                       "s3";
                     return;
                   }
-                  dirs.push(path.posix.join("/", item.name, subItem.name, "/"));
+                  dirs.push(path.posix.join("/", item.name, subItem.name));
                 });
               });
             });

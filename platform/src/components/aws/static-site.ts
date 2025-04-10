@@ -967,7 +967,7 @@ export class StaticSite extends Component implements Link.Linkable {
 
         fs.readdirSync(outputPath, { withFileTypes: true }).forEach((item) => {
           if (item.isDirectory()) {
-            dirs.push(path.posix.join("/", item.name, "/"));
+            dirs.push(path.posix.join("/", item.name));
             return;
           }
           kvEntries[path.posix.join("/", item.name)] = "s3";

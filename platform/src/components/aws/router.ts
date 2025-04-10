@@ -1895,6 +1895,14 @@ async function routeSite(kvNamespace, metadata) {
       const route = metadata.s3.routes[i];
       if (baselessUri.startsWith(route)) {
         event.request.uri = metadata.s3.dir + baselessUri;
+        // uri ends with /, ie. /usage/ -> /usage/index.html
+        if (event.request.uri.endsWith("/")) {
+          event.request.uri += "index.html";
+        }
+        // uri ends with non-file, ie. /usage -> /usage/index.html
+        else if (!event.request.uri.split("/").pop().includes(".")) {
+          event.request.uri += "/index.html";
+        }
         setS3Origin(metadata.s3.domain);
         return;
       }
