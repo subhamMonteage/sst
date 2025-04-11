@@ -18,7 +18,6 @@ import { VisibleError } from "../error";
 import { RouterUrlRoute } from "./router-url-route";
 import { RouterBucketRoute } from "./router-bucket-route";
 import { DurationSeconds } from "../duration";
-import path from "path";
 
 interface InlineUrlRouteArgs extends InlineBaseRouteArgs {
   /**
@@ -1884,7 +1883,7 @@ async function routeSite(kvNamespace, metadata) {
       : ["", ".html", "/index.html"];
     const v = await Promise.any(postfixes.map(p => cf.kvs().get(kvNamespace + ":" + u + p).then(v => p)));
     // files are stored in a subdirectory, add it to the request uri
-    event.request.uri = metadata.s3.dir + baselessUri + v;
+    event.request.uri = metadata.s3.dir + event.request.uri + v;
     setS3Origin(metadata.s3.domain);
     return;
   } catch (e) {}
@@ -1894,7 +1893,7 @@ async function routeSite(kvNamespace, metadata) {
     for (var i=0, l=metadata.s3.routes.length; i<l; i++) {
       const route = metadata.s3.routes[i];
       if (baselessUri.startsWith(route)) {
-        event.request.uri = metadata.s3.dir + baselessUri;
+        event.request.uri = metadata.s3.dir + event.request.uri;
         // uri ends with /, ie. /usage/ -> /usage/index.html
         if (event.request.uri.endsWith("/")) {
           event.request.uri += "index.html";
@@ -1911,7 +1910,7 @@ async function routeSite(kvNamespace, metadata) {
 
   // Route to S3 custom 404 (no servers)
   if (metadata.custom404) {
-    event.request.uri = metadata.s3.dir + metadata.custom404;
+    event.request.uri = metadata.s3.dir + (metadata.base ? metadata.base : "") + metadata.custom404;
     setS3Origin(metadata.s3.domain);
     return;
   }

@@ -1118,8 +1118,8 @@ async function handler(event) {
     }
 
     function uploadAssets() {
-      return all([args.assets, plan, outputPath]).apply(
-        async ([assets, plan, outputPath]) => {
+      return all([args.assets, route, plan, outputPath]).apply(
+        async ([assets, route, plan, outputPath]) => {
           // Define content headers
           const versionedFilesTTL = 31536000; // 1 year
           const nonVersionedFilesTTL = 86400; // 1 day
@@ -1180,7 +1180,11 @@ async function handler(event) {
                       .digest("hex");
                     return {
                       source,
-                      key: path.posix.join(copy.to, file),
+                      key: path.posix.join(
+                        copy.to,
+                        route?.pathPrefix?.replace(/^\//, "") ?? "",
+                        file,
+                      ),
                       hash,
                       cacheControl: fileOption.cacheControl,
                       contentType:
@@ -1248,7 +1252,7 @@ async function handler(event) {
                 // route by 1 level of subdirs (ie. /_next/`), so we need to route by 2
                 // levels of subdirs.
                 if (!copy.deepRoute) {
-                  dirs.push(path.posix.join("/", item.name, "/"));
+                  dirs.push(path.posix.join("/", item.name));
                   return;
                 }
 

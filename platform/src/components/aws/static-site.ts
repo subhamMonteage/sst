@@ -879,70 +879,76 @@ export class StaticSite extends Component implements Link.Linkable {
     }
 
     function uploadAssets() {
-      return all([outputPath, assets]).apply(async ([outputPath, assets]) => {
-        const bucketFiles: BucketFile[] = [];
+      return all([outputPath, assets, route]).apply(
+        async ([outputPath, assets, route]) => {
+          const bucketFiles: BucketFile[] = [];
 
-        // Build fileOptions
-        const fileOptions = assets?.fileOptions ?? [
-          {
-            files: "**/*.html",
-            cacheControl: "max-age=0,no-cache,no-store,must-revalidate",
-          },
-          {
-            files: "**",
-            cacheControl: "max-age=31536000,public,immutable",
-          },
-        ];
+          // Build fileOptions
+          const fileOptions = assets?.fileOptions ?? [
+            {
+              files: "**/*.html",
+              cacheControl: "max-age=0,no-cache,no-store,must-revalidate",
+            },
+            {
+              files: "**",
+              cacheControl: "max-age=31536000,public,immutable",
+            },
+          ];
 
-        // Upload files based on fileOptions
-        const filesProcessed: string[] = [];
-        for (const fileOption of fileOptions.reverse()) {
-          const files = globSync(fileOption.files, {
-            cwd: path.resolve(outputPath),
-            nodir: true,
-            dot: true,
-            ignore: [
-              ".sst/**",
-              ...(typeof fileOption.ignore === "string"
-                ? [fileOption.ignore]
-                : fileOption.ignore ?? []),
-            ],
-          }).filter((file) => !filesProcessed.includes(file));
+          // Upload files based on fileOptions
+          const filesProcessed: string[] = [];
+          for (const fileOption of fileOptions.reverse()) {
+            const files = globSync(fileOption.files, {
+              cwd: path.resolve(outputPath),
+              nodir: true,
+              dot: true,
+              ignore: [
+                ".sst/**",
+                ...(typeof fileOption.ignore === "string"
+                  ? [fileOption.ignore]
+                  : fileOption.ignore ?? []),
+              ],
+            }).filter((file) => !filesProcessed.includes(file));
 
-          bucketFiles.push(
-            ...(await Promise.all(
-              files.map(async (file) => {
-                const source = path.resolve(outputPath, file);
-                const content = await fs.promises.readFile(source, "utf-8");
-                const hash = crypto
-                  .createHash("sha256")
-                  .update(content)
-                  .digest("hex");
-                return {
-                  source,
-                  key: path.posix.join(assets.path ?? "", file),
-                  hash,
-                  cacheControl: fileOption.cacheControl,
-                  contentType:
-                    fileOption.contentType ?? getContentType(file, "UTF-8"),
-                };
-              }),
-            )),
+            bucketFiles.push(
+              ...(await Promise.all(
+                files.map(async (file) => {
+                  const source = path.resolve(outputPath, file);
+                  const content = await fs.promises.readFile(source, "utf-8");
+                  const hash = crypto
+                    .createHash("sha256")
+                    .update(content)
+                    .digest("hex");
+                  return {
+                    source,
+                    key: path.posix.join(
+                      assets.path ?? "",
+                      route?.pathPrefix?.replace(/^\//, "") ?? "",
+                      file,
+                    ),
+                    hash,
+                    cacheControl: fileOption.cacheControl,
+                    contentType:
+                      fileOption.contentType ?? getContentType(file, "UTF-8"),
+                  };
+                }),
+              )),
+            );
+            filesProcessed.push(...files);
+          }
+
+          return new BucketFiles(
+            `${name}AssetFiles`,
+            {
+              bucketName,
+              files: bucketFiles,
+              purge: assets.purge,
+              region: getRegionOutput(undefined, { parent: self }).name,
+            },
+            { parent: self },
           );
-          filesProcessed.push(...files);
-        }
-
-        return new BucketFiles(
-          `${name}AssetFiles`,
-          {
-            bucketName,
-            files: bucketFiles,
-            purge: assets.purge,
-            region: getRegionOutput(undefined, { parent: self }).name,
-          },
-          { parent: self },
-        );
-      });
+        },
+      );
     }
 
     function buildKvNamespace() {
