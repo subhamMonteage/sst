@@ -18,6 +18,7 @@ Before you get started, make sure to [configure your AWS credentials](/docs/iam-
 
 We also have a few other Drizzle and Postgres examples that you can refer to.
 
+- [Run migrations in your CI/CD pipeline](/docs/examples/#drizzle-migrations-in-cicd)
 - [Use Next.js, Postgres, and Drizzle with the T3 Stack](/docs/examples/#t3-stack-in-aws)
 - [Run Postgres in a local Docker container for dev](/docs/examples/#aws-postgres-local)
 
@@ -242,46 +243,6 @@ npx sst tunnel
 
 Alternatively, you can just run the tunnel using the above command.
 
-#### Applying Migrations in CI/CD
-
-Your can apply migrations automatically by invoking a lambda function linked to your database.
-
-```ts title="sst.config.ts"
-const migrator = new sst.aws.Function("DatabaseMigrator", {
-  handler: "src/migrator.handler",
-  link: [rds],
-  vpc,
-  copyFiles: [
-    {
-      from: "migrations",
-      to: "./migrations",
-    },
-  ],
-});
-
-if (!$dev) {
-  new aws.lambda.Invocation("DatabaseMigratorInvocation", {
-    input: Date.now().toString(),
-    functionName: migrator.name,
-  });
-}
-```
-
-Now define the handler in `src/migrator.ts`
-
-```ts title="src/migrator.ts"
-import { db } from "./drizzle";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-
-export const handler = async (event: any) => {
-  await migrate(db, {
-    migrationsFolder: "./migrations",
-  });
-};
-```
-
-Passing the time as input forces the migrator function to run on each deployment.
-
 ---
 
 #### Drizzle Studio
@@ -387,4 +348,3 @@ As a next step, you can setup the [SST Console](/docs/console/) to _**git push t
 ![SST Console Autodeploy](../../../../../assets/docs/start/sst-console-autodeploy.png)
 
 You can [create a free account](https://console.sst.dev) and connect it to your AWS account.
-

@@ -19,25 +19,6 @@ export default $config({
       handler: "src/api.handler",
     });
 
-    const migrator = new sst.aws.Function("DatabaseMigrator", {
-      handler: "src/migrator.handler",
-      link: [rds],
-      vpc,
-      copyFiles: [
-        {
-          from: "migrations",
-          to: "./migrations",
-        },
-      ],
-    });
-
-    if (!$dev){
-      new aws.lambda.Invocation("DatabaseMigratorInvocation", {
-        input: Date.now().toString(),
-        functionName: migrator.name,
-      });
-    }
-
     new sst.x.DevCommand("Studio", {
       link: [rds],
       dev: {
