@@ -1,0 +1,8 @@
+{
+  "name": "sst",
+  "workspaces": [
+    "www",
+    "platform",
+    "sdk/js"
+  ]
+}

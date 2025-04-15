@@ -1,0 +1,14 @@
+.sst
+dist
+node_modules
+Pulumi.*.yaml
+Pulumi.yaml
+
+# osx
+.DS_Store
+
+# Local Netlify folder
+.netlify
+.env
+tmp
+.termai
