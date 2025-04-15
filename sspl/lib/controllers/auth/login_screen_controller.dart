@@ -13,3 +13,4 @@ class LoginScreenController extends GetxController {
 
   final isLoading = false.obs;
 }
+ 
